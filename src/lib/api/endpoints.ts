@@ -1,4 +1,6 @@
 
+import { toast } from "sonner";
+
 const API_BASE_URL = `https://talent-compass-recommendations.lovable.app`;
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmYW53bmd1aG9lZGxjZHNodG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODEwMzQ4NDcsImV4cCI6MTk5NjYxMDg0N30.R-Kf-aBs0uJYO3Qyl3A94myQfTNnke5FaixtacWTBtI";
 
@@ -56,4 +58,3 @@ export const getRecommendations = async (query: string): Promise<any> => {
     return [];
   }
 };
-
