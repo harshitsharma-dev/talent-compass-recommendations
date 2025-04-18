@@ -2,6 +2,11 @@
 import Papa from 'papaparse';
 import { Assessment } from '../mockData';
 
+// Define an interface for CSV row data
+interface CSVRowData {
+  [key: string]: string;  // CSV rows have string keys and string values
+}
+
 // Store the parsed CSV data
 let parsedAssessments: Assessment[] = [];
 
@@ -26,7 +31,7 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
         console.log('CSV data fetched, parsing with PapaParse...');
         
         // Parse CSV using PapaParse with improved configuration
-        const results = Papa.parse(csvText, {
+        const results = Papa.parse<CSVRowData>(csvText, {
           header: true,
           skipEmptyLines: true,
           transformHeader: (header) => header.trim(),
@@ -40,12 +45,13 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
         if (results.data.length > 0) {
           console.log('CSV Headers:', results.meta.fields);
           console.log('First row sample:', results.data[0]);
-          console.log('Embedding sample:', results.data[0].embedding);
+          // Now this is type-safe
+          console.log('Embedding sample:', results.data[0]?.embedding);
         }
         
         const assessmentData = results.data
-          .filter((row: any) => row['Test Title'] && row['Link'] && row['embedding'])
-          .map((row: any, index: number) => {
+          .filter((row) => row['Test Title'] && row['Link'] && row['embedding'])
+          .map((row, index: number) => {
             // Parse the embedding string into an array
             let embedding;
             try {

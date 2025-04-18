@@ -18,3 +18,10 @@ export interface SearchResult {
 export interface EmbeddingCache {
   [key: string]: number[];
 }
+
+// Add this declaration to extend the Assessment interface
+declare module '@/lib/mockData' {
+  interface Assessment {
+    embedding?: number[] | null;
+  }
+}
