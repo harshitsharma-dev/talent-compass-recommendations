@@ -22,22 +22,34 @@ const preprocessText = (text: string): string => {
     .replace(/\s+/g, ' ')      // Remove extra spaces
     .trim();
   
-  // Expand common abbreviations and synonyms
+  // Expanded synonyms and technology mappings
   const synonymMap: {[key: string]: string} = {
+    // Programming languages and technologies
     'js': 'javascript',
+    'javascript': 'javascript programming coding',
     'ts': 'typescript',
+    'typescript': 'typescript programming coding',
     'py': 'python',
-    'collab': 'collaboration',
-    'collaborative': 'collaboration',
+    'python': 'python programming coding',
+    'sql': 'sql database query',
+    'java': 'java programming coding',
+    
+    // Job roles and levels
     'dev': 'developer',
+    'developer': 'developer programming coding',
     'sr': 'senior',
     'jr': 'junior',
     'mid-level': 'midlevel',
     'mid level': 'midlevel',
+    'midlevel': 'intermediate experienced',
+    'analyst': 'analytics data analysis',
+    
+    // Soft skills and test types
+    'collab': 'collaboration',
+    'collaborative': 'collaboration',
     'cognitive': 'cognitive assessment',
     'personality': 'personality test',
     'soft skills': 'behavioral assessment communication teamwork',
-    'analyst': 'analytics data analysis',
   };
   
   Object.entries(synonymMap).forEach(([abbr, expansion]) => {
@@ -48,15 +60,21 @@ const preprocessText = (text: string): string => {
   return processedText;
 };
 
-// Fallback keyword-based search without embeddings
+// Improved keyword-based search without embeddings
 const performKeywordSearch = (assessments: Assessment[], query: string): Assessment[] => {
-  const keywords = query.toLowerCase().split(/\s+/).filter(k => k.length > 2);
+  const normalizedQuery = query.toLowerCase();
+  const keywords = normalizedQuery.split(/\s+/).filter(k => k.length > 2);
+  
+  // Extract tech skills from query
+  const techSkills = extractTechSkillsFromQuery(normalizedQuery);
   
   return assessments.map(assessment => {
     const searchableText = `${assessment.title} ${assessment.description} ${assessment.test_type.join(' ')} ${assessment.job_levels.join(' ')}`.toLowerCase();
     
     // Calculate a more sophisticated relevance score based on keyword matches
     let score = 0;
+    
+    // Match keywords
     keywords.forEach(keyword => {
       if (searchableText.includes(keyword)) {
         score += 1;
@@ -74,6 +92,34 @@ const performKeywordSearch = (assessments: Assessment[], query: string): Assessm
         }
       }
     });
+    
+    // Match tech skills
+    if (techSkills.length > 0) {
+      const foundSkills = techSkills.filter(skill => 
+        searchableText.includes(skill)
+      );
+      
+      // Boost score for tech skill matches
+      if (foundSkills.length > 0) {
+        score += foundSkills.length * 3;
+        // Extra boost if all skills are found
+        if (foundSkills.length === techSkills.length) {
+          score += 5;
+        }
+      }
+    }
+    
+    // Add score for assessments that mention skills assessment or technical assessment
+    if (normalizedQuery.includes("python") || normalizedQuery.includes("sql") || normalizedQuery.includes("javascript") || 
+        normalizedQuery.includes("java")) {
+      if (assessment.test_type.some(type => 
+        type.toLowerCase().includes("technical") || 
+        type.toLowerCase().includes("coding") || 
+        type.toLowerCase().includes("skill")
+      )) {
+        score += 4;
+      }
+    }
     
     // Duration-based score adjustment
     if (query.includes('minutes') || query.includes('min')) {
@@ -136,6 +182,40 @@ const getAssessmentEmbeddings = async (assessments: Assessment[]): Promise<{ [ke
   }
 };
 
+// Extract tech skills from query
+const extractTechSkillsFromQuery = (query: string): string[] => {
+  const skills = [];
+  const techSkillsMap: {[key: string]: string} = {
+    'python': 'python',
+    'sql': 'sql',
+    'javascript': 'javascript',
+    'js': 'javascript',
+    'java ': 'java', // Space to avoid matching javascript
+    'typescript': 'typescript',
+    'ts': 'typescript',
+    'c#': 'c#',
+    'c++': 'c++',
+    'react': 'react',
+    'angular': 'angular',
+    'vue': 'vue',
+    'node': 'node',
+    'php': 'php',
+    'ruby': 'ruby',
+    'go': 'go',
+    'rust': 'rust',
+    'swift': 'swift',
+    'kotlin': 'kotlin',
+  };
+  
+  Object.entries(techSkillsMap).forEach(([mention, skill]) => {
+    if (query.includes(mention)) {
+      skills.push(skill);
+    }
+  });
+  
+  return skills;
+};
+
 // Enhanced filter - recognizes duration mentions in natural language
 const extractDurationFromQuery = (query: string): number | undefined => {
   const durationMatches = query.match(/(\d+)\s*minutes|(\d+)\s*min/i);
@@ -159,12 +239,18 @@ const extractTestTypesFromQuery = (query: string): string[] => {
     'behavioral': 'Behavioral Assessment',
     'skill': 'Skills Assessment',
     'problem solving': 'Problem Solving',
-    'domain': 'Domain Knowledge'
+    'domain': 'Domain Knowledge',
+    'python': 'Technical Assessment', // Map languages to technical assessments
+    'sql': 'Technical Assessment',
+    'javascript': 'Technical Assessment',
+    'java': 'Technical Assessment',
   };
   
   Object.entries(testTypeMap).forEach(([mention, testType]) => {
     if (lowerQuery.includes(mention)) {
-      testTypes.push(testType);
+      if (!testTypes.includes(testType)) {
+        testTypes.push(testType);
+      }
     }
   });
   
@@ -210,10 +296,63 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
   
   try {
     const allAssessments = await loadAssessmentData();
+    
+    // Early return if no assessments found
+    if (allAssessments.length === 0) {
+      console.log('No assessments found in data source');
+      return [];
+    }
+    
+    // First try filtering without vector search for specific queries
+    const techSkills = extractTechSkillsFromQuery(query.toLowerCase());
+    const hasSkillsQuery = techSkills.length > 0;
+    const hasDurationQuery = query.match(/(\d+)\s*minutes|(\d+)\s*min/i) != null;
+    
+    // For specific types of queries, prioritize keyword matching first
+    if (hasSkillsQuery || hasDurationQuery) {
+      console.log('Detected specialized query with tech skills or duration. Trying keyword search first.');
+      
+      let filteredAssessments = filterAssessments(allAssessments, params);
+      
+      // If we have too few results, relax the filtering
+      if (filteredAssessments.length < 3) {
+        console.log('Too few results with strict filtering, relaxing filters');
+        
+        // Try just with duration filter if specified
+        if (hasDurationQuery) {
+          const extractedDuration = extractDurationFromQuery(query);
+          filteredAssessments = allAssessments.filter(a => 
+            !extractedDuration || a.assessment_length <= extractedDuration
+          );
+        }
+      }
+      
+      // If we still have results to work with, try keyword search
+      if (filteredAssessments.length > 0) {
+        const keywordResults = performKeywordSearch(filteredAssessments, query);
+        
+        // If we got reasonable results, return them
+        if (keywordResults.length >= 1) {
+          console.log(`Keyword search returned ${keywordResults.length} results`);
+          return keywordResults;
+        }
+      }
+    }
+    
+    // If we reach here, try the normal vector search pipeline
     let filteredAssessments = filterAssessments(allAssessments, params);
     
     if (filteredAssessments.length === 0) {
-      return [];
+      console.log('No assessments after filtering, trying with just duration filter');
+      
+      // Try again with just duration filter if specified
+      const extractedDuration = extractDurationFromQuery(query);
+      if (extractedDuration) {
+        filteredAssessments = allAssessments.filter(a => a.assessment_length <= extractedDuration);
+      } else {
+        // If no duration specified, use all assessments
+        filteredAssessments = allAssessments;
+      }
     }
 
     if (query.trim()) {
@@ -229,10 +368,10 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
         // Calculate similarities with dynamic threshold based on query complexity
         const queryComplexity = processedQuery.split(' ').length;
         // More complex queries can have lower thresholds since exact matches are less likely
-        const similarityThreshold = Math.max(0.5, 0.7 - queryComplexity * 0.01);
+        const similarityThreshold = Math.max(0.4, 0.7 - queryComplexity * 0.02);
         console.log(`Using similarity threshold: ${similarityThreshold} for query complexity: ${queryComplexity}`);
         
-        const results = filteredAssessments
+        let results = filteredAssessments
           .map(assessment => ({
             assessment,
             similarity: cosineSimilarity(queryEmbedding, assessmentEmbeddings[assessment.id])
@@ -240,8 +379,46 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
           .filter(result => result.similarity >= similarityThreshold)
           .sort((a, b) => b.similarity - a.similarity)
           .map(result => result.assessment);
-
-        return results.length > 0 ? results : performKeywordSearch(filteredAssessments, query);
+          
+        // If we have too few results, try keyword search
+        if (results.length < 3) {
+          console.log('Too few vector search results, trying keyword search');
+          const keywordResults = performKeywordSearch(filteredAssessments, query);
+          
+          // If keyword search gives better results, use those
+          if (keywordResults.length > results.length) {
+            console.log(`Using keyword search results: ${keywordResults.length} vs ${results.length}`);
+            results = keywordResults;
+          }
+        }
+        
+        // If still no results, ensure we return something
+        if (results.length === 0) {
+          console.log('No results from vector search, falling back to skills-based selection');
+          
+          // Find assessments based on skills mentioned
+          const techSkills = extractTechSkillsFromQuery(query.toLowerCase());
+          
+          // If tech skills mentioned, find technical assessments
+          if (techSkills.length > 0) {
+            results = allAssessments.filter(assessment => 
+              assessment.test_type.some(type => 
+                type.includes('Technical') || 
+                type.includes('Coding') || 
+                type.includes('Skills')
+              ) && 
+              (!hasDurationQuery || assessment.assessment_length <= extractDurationFromQuery(query) || 60)
+            ).slice(0, 5); // Limit to 5 results
+          } else {
+            // Otherwise just return some assessments
+            results = allAssessments
+              .filter(a => !hasDurationQuery || a.assessment_length <= extractDurationFromQuery(query) || 60)
+              .slice(0, 5);
+          }
+        }
+        
+        console.log(`Final search returned ${results.length} results`);
+        return results;
       } catch (error) {
         console.warn('Vector search failed, falling back to keyword search:', error);
         return performKeywordSearch(filteredAssessments, query);

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Assessment } from '@/lib/mockData';
 import { performVectorSearch } from '@/lib/search/vectorSearch';
@@ -39,19 +40,20 @@ export const useAssessmentSearch = (initialQuery: string) => {
   // Extract parameters from natural language query
   const extractSearchParameters = (searchQuery: string): Partial<SearchFilters> => {
     const extractedParams: Partial<SearchFilters> = {};
+    const lowercaseQuery = searchQuery.toLowerCase();
     
     // Extract duration
-    const durationMatches = searchQuery.match(/(\d+)\s*minutes|(\d+)\s*min/i);
+    const durationMatches = lowercaseQuery.match(/(\d+)\s*minutes|(\d+)\s*min/i);
     if (durationMatches) {
       extractedParams.maxDuration = parseInt(durationMatches[1] || durationMatches[2]);
     }
     
     // Look for remote mentions
-    if (/remote|online|virtual/i.test(searchQuery)) {
+    if (/remote|online|virtual/i.test(lowercaseQuery)) {
       extractedParams.remote = true;
     }
     
-    // Look for test types
+    // Look for test types - expanded mapping
     const testTypeMap: {[key: string]: string} = {
       'coding': 'Coding Challenge',
       'technical': 'Technical Assessment',
@@ -60,11 +62,21 @@ export const useAssessmentSearch = (initialQuery: string) => {
       'behavioral': 'Behavioral Assessment',
       'collaboration': 'Behavioral Assessment',
       'skill': 'Skills Assessment',
+      'python': 'Technical Assessment',
+      'javascript': 'Technical Assessment',
+      'js': 'Technical Assessment',
+      'java': 'Technical Assessment',
+      'sql': 'Technical Assessment',
+      'react': 'Technical Assessment',
+      'analytics': 'Cognitive Assessment',
+      'analyst': 'Cognitive Assessment',
+      'problem solving': 'Problem Solving',
+      'domain': 'Domain Knowledge',
     };
     
     const extractedTypes: string[] = [];
     Object.entries(testTypeMap).forEach(([keyword, testType]) => {
-      if (searchQuery.toLowerCase().includes(keyword)) {
+      if (lowercaseQuery.includes(keyword) && !extractedTypes.includes(testType)) {
         extractedTypes.push(testType);
       }
     });
@@ -89,9 +101,30 @@ export const useAssessmentSearch = (initialQuery: string) => {
       return allAssessments;
     }
     
+    // More robust keyword matching
     return allAssessments.filter(assessment => {
       const searchableText = `${assessment.title} ${assessment.description} ${assessment.test_type.join(' ')}`.toLowerCase();
-      return keywords.some(keyword => searchableText.includes(keyword));
+      
+      // Check if any keyword is present
+      const anyKeyword = keywords.some(keyword => searchableText.includes(keyword));
+      
+      // Check for tech skills specifically
+      const techSkills = ['python', 'javascript', 'js', 'java', 'sql'];
+      const hasTechSkill = techSkills.some(skill => 
+        searchQuery.toLowerCase().includes(skill) && 
+        searchableText.includes(skill)
+      );
+      
+      // Handle special case for programming skills
+      if (hasTechSkill && assessment.test_type.some(type => 
+        type.includes('Technical') || 
+        type.includes('Coding') || 
+        type.includes('Skills')
+      )) {
+        return true;
+      }
+      
+      return anyKeyword;
     });
   };
 
@@ -129,6 +162,37 @@ export const useAssessmentSearch = (initialQuery: string) => {
             query: searchQuery,
             ...mergedFilters
           });
+          
+          // If no results found with vector search, try fallback to simple text search
+          if (searchResults.length === 0) {
+            console.log('No vector search results, trying fallback text search');
+            const textResults = await performTextSearch(searchQuery);
+            
+            // Apply filters to text search results
+            searchResults = textResults.filter(assessment => {
+              if (mergedFilters.remote && !assessment.remote_support) return false;
+              if (mergedFilters.adaptive && !assessment.adaptive_support) return false;
+              if (mergedFilters.maxDuration && assessment.assessment_length > mergedFilters.maxDuration) return false;
+              if (mergedFilters.testTypes && mergedFilters.testTypes.length > 0 && 
+                  !mergedFilters.testTypes.some(type => assessment.test_type.includes(type))) return false;
+              return true;
+            });
+          }
+          
+          // As a last resort, if we still have no results, just return some technical assessments
+          if (searchResults.length === 0 && searchQuery.toLowerCase().match(/(python|javascript|js|java|sql)/)) {
+            console.log('Emergency fallback: returning technical assessments');
+            const allAssessments = await loadAssessmentData();
+            searchResults = allAssessments.filter(assessment => 
+              assessment.test_type.some(type => 
+                type.includes('Technical') || 
+                type.includes('Coding') || 
+                type.includes('Skills')
+              ) && 
+              (!mergedFilters.maxDuration || assessment.assessment_length <= mergedFilters.maxDuration || assessment.assessment_length <= 60)
+            ).slice(0, 10); // Return at most 10 results
+          }
+          
         } catch (error) {
           console.error('Error in vector search, falling back to text search:', error);
           
