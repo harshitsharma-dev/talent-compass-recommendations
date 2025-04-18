@@ -38,6 +38,7 @@ export const getEmbeddings = async (texts: string[]): Promise<{ data: number[][]
       embeddingCache[text] = result.data[index].embedding;
     });
 
+    // Return data in the expected format: an array of embedding arrays
     return { data: result.data.map((item: any) => item.embedding) };
   } catch (error) {
     console.error('Error getting embeddings:', error);

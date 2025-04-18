@@ -1,3 +1,4 @@
+
 import { Assessment } from '@/lib/mockData';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 import { getEmbeddings } from '@/lib/embedding/embeddingModel';
@@ -53,8 +54,9 @@ const performKeywordSearch = (assessments: Assessment[], query: string): Assessm
 const getQueryEmbedding = async (query: string): Promise<number[]> => {
   try {
     console.log('Getting embedding for query:', query);
-    const embedding = await getEmbeddings([query]);
-    return Array.from(embedding.data);
+    const embeddingResult = await getEmbeddings([query]);
+    // Access the first (and only) embedding in the data array
+    return embeddingResult.data[0];
   } catch (error) {
     console.error('Error getting query embedding:', error);
     throw error;
@@ -75,7 +77,7 @@ const getAssessmentEmbeddings = async (assessments: Assessment[]): Promise<{ [ke
     const embeddings = await getEmbeddings(texts);
     
     assessmentEmbeddings = assessments.reduce((acc, assessment, index) => {
-      acc[assessment.id] = Array.from(embeddings.data[index]);
+      acc[assessment.id] = embeddings.data[index];
       return acc;
     }, {} as { [key: string]: number[] });
 
