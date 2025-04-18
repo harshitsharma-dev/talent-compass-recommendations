@@ -1,16 +1,11 @@
 
-import Papa from 'papaparse';
 import { Assessment } from '../mockData';
 import { supabase } from '@/integrations/supabase/client';
 
-interface CSVRowData {
-  [key: string]: string;
-}
-
-// Store the parsed CSV data
+// Store the parsed data
 let parsedAssessments: Assessment[] = [];
 
-// Function to load and parse the CSV file
+// Function to load and parse assessment data
 export const loadAssessmentData = async (): Promise<Assessment[]> => {
   if (parsedAssessments.length > 0) {
     console.log(`Using cached data with ${parsedAssessments.length} assessments`);
@@ -20,63 +15,33 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
   try {
     console.log('Fetching assessment data from Supabase');
     
-    // First, fetch assessments from the SHL table
-    const { data: shlData, error: shlError } = await supabase
-      .from('SHL')
+    const { data: assessments, error } = await supabase
+      .from('assessments')
       .select('*');
 
-    if (shlError) {
-      console.error('Error fetching SHL data:', shlError);
-      throw shlError;
+    if (error) {
+      console.error('Error fetching assessments:', error);
+      throw error;
     }
 
-    // Then, fetch embeddings from assessment_embeddings table
-    const { data: embeddingsData, error: embeddingsError } = await supabase
-      .from('assessment_embeddings')
-      .select('*');
+    const validAssessments = assessments
+      .filter(row => row.title && row.link)
+      .map((row) => ({
+        id: row.id.toString(),
+        title: row.title || 'Untitled Assessment',
+        url: row.link ? `https://www.shl.com${row.link}` : '#',
+        remote_support: row.remote_support || false,
+        adaptive_support: row.adaptive_support || false,
+        test_type: row.test_type ? [row.test_type] : ['Technical Assessment'],
+        description: row.description || 'No description available',
+        job_levels: row.job_levels ? row.job_levels.split(',').map((j: string) => j.trim()) : ['All Levels'],
+        languages: row.languages ? row.languages.split(',').map((l: string) => l.trim()) : ['English'],
+        assessment_length: row.assessment_length || 45,
+        downloads: row.downloads || Math.floor(Math.random() * 5000) + 100,
+        embedding: row.embedding
+      }));
 
-    if (embeddingsError) {
-      console.error('Error fetching embeddings:', embeddingsError);
-      throw embeddingsError;
-    }
-
-    // Create a mapping of assessment_id to embedding
-    const embeddingsMap = embeddingsData.reduce((acc, embedding) => {
-      acc[embedding.assessment_id] = embedding.embedding;
-      return acc;
-    }, {});
-
-    const assessmentData = shlData
-      .filter((row) => row['Test Title'] && row['Link'])
-      .map((row, index: number) => {
-        const assessmentId = `${index}`;
-        const embedding = embeddingsMap[assessmentId] || null;
-
-        return {
-          id: assessmentId,
-          title: row['Test Title'] || 'Untitled Assessment',
-          url: row['Link'] ? `https://www.shl.com${row['Link']}` : '#',
-          remote_support: row['Remote Testing'] === 'Yes',
-          adaptive_support: row['Adaptive/IRT'] === 'Yes',
-          test_type: row['Test Type'] ? [row['Test Type']] : ['Technical Assessment'],
-          description: row['Description'] || 'No description available',
-          job_levels: row['Job Levels'] ? row['Job Levels'].split(',').map((j: string) => j.trim()) : ['All Levels'],
-          languages: row['Languages'] ? row['Languages'].split(',').map((l: string) => l.trim()) : ['English'],
-          assessment_length: parseInt(row['Assessment Length']) || 45,
-          downloads: Math.floor(Math.random() * 5000) + 100,
-          embedding: embedding
-        };
-      });
-
-    const validAssessments = assessmentData.filter(assessment => 
-      assessment.title && 
-      assessment.title !== 'undefined' && 
-      assessment.url && 
-      assessment.url !== 'https://www.shl.com#' &&
-      assessment.embedding !== null
-    );
-
-    console.log(`After validation: ${validAssessments.length} assessment objects with embeddings`);
+    console.log(`Found ${validAssessments.length} valid assessments`);
     parsedAssessments = validAssessments;
     return validAssessments;
   } catch (error) {

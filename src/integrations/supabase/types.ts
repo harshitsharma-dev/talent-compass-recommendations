@@ -96,30 +96,48 @@ export type Database = {
           },
         ]
       }
-      assessment_embeddings: {
+      assessments: {
         Row: {
-          assessment_id: string
-          created_at: string
+          adaptive_support: boolean | null
+          assessment_length: number | null
+          description: string | null
+          downloads: number | null
           embedding: string | null
-          id: string
-          last_updated: string
-          title: string
+          id: number
+          job_levels: string | null
+          languages: string | null
+          link: string | null
+          remote_support: boolean | null
+          test_type: string | null
+          title: string | null
         }
         Insert: {
-          assessment_id: string
-          created_at?: string
+          adaptive_support?: boolean | null
+          assessment_length?: number | null
+          description?: string | null
+          downloads?: number | null
           embedding?: string | null
-          id?: string
-          last_updated?: string
-          title: string
+          id?: number
+          job_levels?: string | null
+          languages?: string | null
+          link?: string | null
+          remote_support?: boolean | null
+          test_type?: string | null
+          title?: string | null
         }
         Update: {
-          assessment_id?: string
-          created_at?: string
+          adaptive_support?: boolean | null
+          assessment_length?: number | null
+          description?: string | null
+          downloads?: number | null
           embedding?: string | null
-          id?: string
-          last_updated?: string
-          title?: string
+          id?: number
+          job_levels?: string | null
+          languages?: string | null
+          link?: string | null
+          remote_support?: boolean | null
+          test_type?: string | null
+          title?: string | null
         }
         Relationships: []
       }
@@ -784,45 +802,6 @@ export type Database = {
           status?: string | null
           title?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      SHL: {
-        Row: {
-          "Adaptive/IRT": string | null
-          "Assessment Length": string | null
-          Description: string | null
-          Downloads: string | null
-          "Job Levels": string | null
-          Languages: string | null
-          Link: string
-          "Remote Testing": string | null
-          "Test Title": string | null
-          "Test Type": string | null
-        }
-        Insert: {
-          "Adaptive/IRT"?: string | null
-          "Assessment Length"?: string | null
-          Description?: string | null
-          Downloads?: string | null
-          "Job Levels"?: string | null
-          Languages?: string | null
-          Link: string
-          "Remote Testing"?: string | null
-          "Test Title"?: string | null
-          "Test Type"?: string | null
-        }
-        Update: {
-          "Adaptive/IRT"?: string | null
-          "Assessment Length"?: string | null
-          Description?: string | null
-          Downloads?: string | null
-          "Job Levels"?: string | null
-          Languages?: string | null
-          Link?: string
-          "Remote Testing"?: string | null
-          "Test Title"?: string | null
-          "Test Type"?: string | null
         }
         Relationships: []
       }
