@@ -9,20 +9,30 @@ const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
  */
 export const checkApiHealth = async () => {
   try {
+    console.log('Checking API health...');
     const response = await fetch(`${API_BASE_URL}/health`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${ANON_KEY}`,
         'apikey': ANON_KEY
       },
     });
     
     if (!response.ok) {
-      throw new Error(`Health check failed with status: ${response.status}`);
+      console.warn(`Health check failed with status: ${response.status}`);
+      return null;
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.warn('Health check response is not JSON:', contentType);
+      return null;
     }
     
     const data = await response.json();
+    console.log('Health check response:', data);
     return data;
   } catch (error) {
     console.error("API Health check error:", error);
