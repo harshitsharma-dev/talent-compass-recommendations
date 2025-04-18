@@ -24,6 +24,25 @@ const SearchResults = ({ loading, showNoResults, results }: SearchResultsProps) 
     );
   }
 
+  // If there are results, show them even if showNoResults is true
+  // This handles the case where the relaxed filters found results
+  if (results.length > 0) {
+    return (
+      <div className="space-y-6">
+        {results.length > 0 && (
+          <p className="text-sm text-muted-foreground pb-4">
+            Showing {results.length} {results.length === 1 ? 'assessment' : 'assessments'} based on your criteria.
+          </p>
+        )}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+          {results.map((assessment) => (
+            <AssessmentCard key={assessment.id} assessment={assessment} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (showNoResults) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -39,13 +58,7 @@ const SearchResults = ({ loading, showNoResults, results }: SearchResultsProps) 
     );
   }
 
-  return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
-      {results.map((assessment) => (
-        <AssessmentCard key={assessment.id} assessment={assessment} />
-      ))}
-    </div>
-  );
+  return null;
 };
 
 export default SearchResults;
