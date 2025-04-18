@@ -51,10 +51,15 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
   }, []);
 
   const handleTestTypeChange = (type: string) => {
+    console.log(`Test type ${type} clicked. Current selection:`, testTypes);
     if (testTypes.includes(type)) {
-      setTestTypes(testTypes.filter(t => t !== type));
+      const newTypes = testTypes.filter(t => t !== type);
+      console.log(`Removing ${type}, new selection:`, newTypes);
+      setTestTypes(newTypes);
     } else {
-      setTestTypes([...testTypes, type]);
+      const newTypes = [...testTypes, type];
+      console.log(`Adding ${type}, new selection:`, newTypes);
+      setTestTypes(newTypes);
     }
   };
 
@@ -66,14 +71,23 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
 
       <SupportFilter
         remote={remote}
-        onRemoteChange={setRemote}
+        onRemoteChange={(value) => {
+          console.log(`Remote changed to: ${value}`);
+          setRemote(value);
+        }}
         adaptive={adaptive}
-        onAdaptiveChange={setAdaptive}
+        onAdaptiveChange={(value) => {
+          console.log(`Adaptive changed to: ${value}`);
+          setAdaptive(value);
+        }}
       />
 
       <DurationFilter
         maxDuration={maxDuration}
-        onDurationChange={setMaxDuration}
+        onDurationChange={(value) => {
+          console.log(`Duration changed to: ${value}`);
+          setMaxDuration(value);
+        }}
       />
 
       <TestTypeFilter

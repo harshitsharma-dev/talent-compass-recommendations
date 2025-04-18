@@ -36,8 +36,18 @@ export const checkApiHealth = async (): Promise<{ status: string; timestamp: str
       console.warn('Health check did not return JSON content type');
     }
     
-    const responseData = await response.json();
-    console.log('Health check response:', responseData);
+    const responseText = await response.text();
+    console.log('Health check raw response:', responseText);
+    
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (err) {
+      console.error('Failed to parse health check JSON response:', err);
+      throw new Error('Invalid JSON response from health check endpoint');
+    }
+    
+    console.log('Health check parsed response:', responseData);
     
     if (!responseData || typeof responseData !== 'object') {
       throw new Error('Invalid health check response format');
@@ -79,12 +89,24 @@ export const getRecommendations = async (query: string): Promise<any> => {
     }
 
     const contentType = response.headers.get('content-type');
+    console.log(`Recommendations response content type: ${contentType}`);
+    
     if (!contentType || !contentType.includes('application/json')) {
       console.warn('Recommendations endpoint did not return JSON content type');
       throw new Error('Invalid content type returned from API');
     }
     
-    const data = await response.json();
+    const responseText = await response.text();
+    console.log('API raw response:', responseText);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (err) {
+      console.error('Failed to parse recommendations JSON response:', err);
+      throw new Error('Invalid JSON response from recommendations endpoint');
+    }
+    
     console.log(`Received API response:`, data);
     console.log(`Received ${data.recommended_assessments?.length || 0} recommendations`);
     
@@ -95,10 +117,14 @@ export const getRecommendations = async (query: string): Promise<any> => {
 
     // Validate and ensure each assessment has required fields
     const validAssessments = (data.recommended_assessments || []).filter(assessment => {
-      return assessment && typeof assessment === 'object';
+      if (!assessment || typeof assessment !== 'object') {
+        console.warn('Invalid assessment object:', assessment);
+        return false;
+      }
+      return true;
     }).map(assessment => {
       // Ensure crucial fields have defaults
-      return {
+      const processedAssessment = {
         ...assessment,
         id: assessment.id || Math.random().toString(36).substr(2, 9),
         title: assessment.title || 'Untitled Assessment',
@@ -108,6 +134,9 @@ export const getRecommendations = async (query: string): Promise<any> => {
         remote_support: !!assessment.remote_support,
         adaptive_support: !!assessment.adaptive_support
       };
+      
+      console.log('Processed assessment:', processedAssessment);
+      return processedAssessment;
     });
 
     console.log(`Returning ${validAssessments.length} validated assessments`);
@@ -115,6 +144,6 @@ export const getRecommendations = async (query: string): Promise<any> => {
   } catch (error) {
     console.error("Recommendation API error:", error);
     toast.error("Failed to get recommendations from API");
-    return [];
+    throw error; // Rethrow to allow for fallback in the search hook
   }
 };

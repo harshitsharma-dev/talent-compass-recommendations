@@ -23,7 +23,20 @@ Deno.serve(async (req) => {
       throw new Error('Method not allowed')
     }
 
-    const { query } = await req.json()
+    // Parse the request body and log it
+    const body = await req.text()
+    console.log('Request body:', body)
+    
+    let reqData
+    try {
+      reqData = JSON.parse(body)
+      console.log('Parsed request data:', reqData)
+    } catch (err) {
+      console.error('Error parsing request JSON:', err)
+      throw new Error('Invalid JSON in request body')
+    }
+
+    const { query } = reqData
 
     if (!query || typeof query !== 'string') {
       throw new Error('Query is required and must be a string')
@@ -42,6 +55,11 @@ Deno.serve(async (req) => {
       throw error
     }
 
+    console.log(`Found ${assessments.length} assessments in database`)
+    if (assessments.length > 0) {
+      console.log('First assessment sample:', assessments[0])
+    }
+
     // Transform the assessments to match the expected response format
     const recommendedAssessments = assessments.map(assessment => ({
       id: assessment.id || Math.random().toString(36).substr(2, 9),
@@ -55,14 +73,20 @@ Deno.serve(async (req) => {
       test_type: assessment['Test Type'] ? [assessment['Test Type']] : ['Technical Assessment']
     }))
 
-    console.log(`Found ${recommendedAssessments.length} recommendations`)
+    console.log(`Transformed into ${recommendedAssessments.length} recommendation objects`)
+    if (recommendedAssessments.length > 0) {
+      console.log('First transformed result:', recommendedAssessments[0])
+    }
+
+    const responseData = { 
+      recommended_assessments: recommendedAssessments,
+      count: recommendedAssessments.length,
+      status: 'success'
+    }
+    console.log(`Sending response with ${recommendedAssessments.length} recommendations`)
 
     return new Response(
-      JSON.stringify({ 
-        recommended_assessments: recommendedAssessments,
-        count: recommendedAssessments.length,
-        status: 'success'
-      }),
+      JSON.stringify(responseData),
       { 
         headers: { 
           ...corsHeaders, 
