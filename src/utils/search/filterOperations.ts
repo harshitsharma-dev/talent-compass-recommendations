@@ -2,6 +2,16 @@
 import { Assessment } from '@/lib/mockData';
 import { SearchFilters } from '@/types/search';
 
+// Map of test type codes to descriptive names
+const testTypeMap = {
+  'K': 'Skills Assessment',
+  'B': 'Behavioral Assessment',
+  'T': 'Technical Assessment',
+  'C': 'Cognitive Assessment',
+  'P': 'Personality Test',
+  'D': 'Domain Knowledge'
+};
+
 export const strictFilter = (assessments: Assessment[], filters: Partial<SearchFilters>): Assessment[] => {
   console.log(`Filtering ${assessments.length} assessments with filters:`, filters);
   
@@ -28,11 +38,26 @@ export const strictFilter = (assessments: Assessment[], filters: Partial<SearchF
     }
     
     // Filter by test types if specified
-    if (filters.testTypes?.length && !filters.testTypes.some(type => 
-      assessment.test_type.some(t => t.toLowerCase().includes(type.toLowerCase()))
-    )) {
-      console.log(`Assessment "${assessment.title}" filtered out: test type doesn't match any of [${filters.testTypes.join(', ')}]`);
-      return false;
+    if (filters.testTypes?.length) {
+      // Convert single-letter test types to descriptive names for comparison
+      const assessmentTestTypes = assessment.test_type.map(type => {
+        // Map if it's a single-letter code, or use original if it's already a full name
+        return testTypeMap[type] || type;
+      });
+      
+      console.log(`Assessment "${assessment.title}" test types: ${assessmentTestTypes.join(', ')}`);
+      
+      const matchesTestType = filters.testTypes.some(filterType => 
+        assessmentTestTypes.some(assessmentType => 
+          assessmentType.toLowerCase().includes(filterType.toLowerCase()) ||
+          filterType.toLowerCase().includes(assessmentType.toLowerCase())
+        )
+      );
+      
+      if (!matchesTestType) {
+        console.log(`Assessment "${assessment.title}" filtered out: test type doesn't match any of [${filters.testTypes.join(', ')}]`);
+        return false;
+      }
     }
     
     // Filter by required skills if specified
