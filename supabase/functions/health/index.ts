@@ -2,7 +2,7 @@
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
-  // Handle CORS
+  // Handle CORS for preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -18,7 +18,10 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify(response),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+        },
         status: 200 
       }
     )
@@ -26,9 +29,16 @@ Deno.serve(async (req) => {
     console.error("Health check error:", error)
     
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        status: "error", 
+        message: error.message,
+        timestamp: new Date().toISOString()
+      }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json'
+        },
         status: 500
       }
     )

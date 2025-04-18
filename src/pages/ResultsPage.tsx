@@ -31,28 +31,32 @@ const ResultsPage = () => {
 
   // Load data from session storage and perform search
   useEffect(() => {
-    console.log('ResultsPage: Loading initial data');
-    
-    const storedQuery = sessionStorage.getItem('assessment-query');
-    if (storedQuery) {
-      console.log('Found stored query:', storedQuery);
-      setQuery(storedQuery);
-    }
-    
-    loadInitialData().then(() => {
-      console.log('Initial data loaded:', results.length, 'results');
+    const init = async () => {
+      console.log('ResultsPage: Loading initial data');
       
-      // If no results and we have a query, try performing the search again with relaxed criteria
-      if (results.length === 0 && storedQuery) {
-        console.log('No stored results found, attempting search again with query:', storedQuery);
-        performSearch(storedQuery);
+      const storedQuery = sessionStorage.getItem('assessment-query');
+      if (storedQuery) {
+        console.log('Found stored query:', storedQuery);
+        setQuery(storedQuery);
       }
-    }).catch((error) => {
-      console.error('Failed to load initial data:', error);
-      toast.error('Failed to load assessment data');
-      navigate('/recommend');
-    });
-  }, [loadInitialData, navigate, setQuery, performSearch, results.length]);
+      
+      try {
+        await loadInitialData();
+        console.log('Initial data loaded:', results.length, 'results');
+        
+        // If no results and we have a query, try performing the search again with relaxed criteria
+        if ((!results || results.length === 0) && storedQuery) {
+          console.log('No stored results found, attempting search again with query:', storedQuery);
+          performSearch(storedQuery);
+        }
+      } catch (error) {
+        console.error('Failed to load initial data:', error);
+        toast.error('Failed to load assessment data');
+      }
+    };
+    
+    init();
+  }, []); // Remove dependencies to ensure this only runs once
 
   const handleFilterChange = (newFilters) => {
     updateFilters(newFilters);
