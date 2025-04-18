@@ -2,16 +2,9 @@ import { Assessment } from '@/lib/mockData';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 import { cosineSimilarity } from './vectorOperations';
 import { preprocessText } from './textProcessing';
-import { 
-  extractDurationFromQuery, 
-  extractTechSkillsFromQuery, 
-  extractTestTypesFromQuery 
-} from './queryExtraction';
-import { 
-  generateAssessmentEmbeddings, 
-  getQueryEmbedding, 
-  preloadEmbeddings 
-} from './embeddingCache';
+import { extractDurationFromQuery, extractTechSkillsFromQuery, extractTestTypesFromQuery } from './queryExtraction';
+import { getQueryEmbedding } from './embeddingCache';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SearchParams {
   query: string;
@@ -59,15 +52,6 @@ const filterAssessments = (assessments: Assessment[], params: SearchParams, stri
   });
 };
 
-export const preloadAssessmentData = async (): Promise<void> => {
-  try {
-    const allAssessments = await loadAssessmentData();
-    await preloadEmbeddings(allAssessments);
-  } catch (error) {
-    console.error('Failed to preload assessment data:', error);
-  }
-};
-
 export const performVectorSearch = async (params: SearchParams): Promise<Assessment[]> => {
   const { query, ...filters } = params;
   console.log('Performing vector search with query:', query);
@@ -82,6 +66,7 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
     const processedQuery = preprocessText(query);
     console.log('Processed query:', processedQuery);
     
+    // Extract search parameters
     const extractedDuration = filters.maxDuration || extractDurationFromQuery(processedQuery);
     const extractedTestTypes = filters.testTypes?.length ? filters.testTypes : extractTestTypesFromQuery(processedQuery);
     const extractedSkills = filters.requiredSkills?.length ? filters.requiredSkills : extractTechSkillsFromQuery(processedQuery);
@@ -94,36 +79,8 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
       requiredSkills: extractedSkills,
     };
     
-    console.log('Search parameters:', JSON.stringify(searchParams, null, 2));
-    
     // First, try strict filtering
     let filteredAssessments = filterAssessments(allAssessments, searchParams, true);
-    console.log(`Strict filtering returned ${filteredAssessments.length} assessments`);
-    
-    // If strict filtering gives no results, fall back to relaxed filtering
-    if (filteredAssessments.length === 0) {
-      console.log('No strict matches found, trying relaxed filtering');
-      filteredAssessments = filterAssessments(allAssessments, searchParams, false);
-      console.log(`Relaxed filtering returned ${filteredAssessments.length} assessments`);
-      
-      // If still no results, try with minimal constraints
-      if (filteredAssessments.length === 0) {
-        console.log('No relaxed matches found, trying minimal filtering');
-        const minimalParams: SearchParams = {
-          query: processedQuery,
-          // Keep only hard constraints if any
-          remote: filters.remote,
-          adaptive: filters.adaptive,
-        };
-        filteredAssessments = filterAssessments(allAssessments, minimalParams, false);
-        console.log(`Minimal filtering returned ${filteredAssessments.length} assessments`);
-      }
-    }
-    
-    if (filteredAssessments.length === 0) {
-      console.log('All filtering attempts returned no results');
-      return [];
-    }
     
     if (!processedQuery.trim()) {
       console.log('Empty query, returning filtered assessments without ranking');
@@ -131,47 +88,47 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
     }
     
     try {
-      // Try to get embeddings and rank results
+      // Get query embedding
       const queryEmbedding = await getQueryEmbedding(processedQuery);
-      const assessmentEmbeddings = await generateAssessmentEmbeddings(filteredAssessments);
       
-      console.log('Ranking assessments by embedding similarity');
+      // Fetch embeddings from the database
+      const { data: embeddingsData, error } = await supabase
+        .from('assessment_embeddings')
+        .select('assessment_id, embedding');
       
-      // Pair assessments with their similarity scores
+      if (error) {
+        throw error;
+      }
+      
+      // Create a map of assessment IDs to embeddings
+      const embeddingsMap = new Map(
+        embeddingsData.map(row => [row.assessment_id, row.embedding])
+      );
+      
+      // Rank assessments by similarity
       const scoredAssessments = filteredAssessments
         .map(assessment => {
-          const embedding = assessmentEmbeddings[assessment.id];
+          const embedding = embeddingsMap.get(assessment.id);
           if (!embedding) {
-            console.log(`No embedding for assessment ID: ${assessment.id}, title: "${assessment.title}"`);
+            console.log(`No embedding found for assessment ID: ${assessment.id}`);
             return { assessment, similarity: 0 };
           }
           const similarity = cosineSimilarity(queryEmbedding, embedding);
           return { assessment, similarity };
         });
       
-      // Log similarity distribution to help with debugging
-      if (scoredAssessments.length > 0) {
-        const scores = scoredAssessments.map(item => item.similarity).sort((a, b) => b - a);
-        console.log(`Similarity score range: ${scores[scores.length-1].toFixed(2)} to ${scores[0].toFixed(2)}`);
-      }
-      
-      // Filter by minimum similarity score (lower threshold for minimal matches)
+      // Filter and sort by similarity
       const threshold = scoredAssessments.length < 5 ? 0.05 : 0.1;
-      console.log(`Using similarity threshold: ${threshold}`);
-      
       const rankedResults = scoredAssessments
         .filter(result => result.similarity > threshold)
         .sort((a, b) => b.similarity - a.similarity)
         .map(result => result.assessment)
         .slice(0, 10);
       
-      console.log(`Returning ${rankedResults.length} ranked results`);
       return rankedResults;
       
     } catch (error) {
-      // Fallback if embedding ranking fails
       console.error('Error during embedding ranking:', error);
-      console.log('Returning unranked filtered assessments as fallback');
       return filteredAssessments.slice(0, 10);
     }
   } catch (error) {

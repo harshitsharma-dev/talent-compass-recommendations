@@ -1,21 +1,12 @@
-import { Assessment } from '@/lib/mockData';
 import { EmbeddingCache } from '@/types/search';
 import { getEmbeddings } from '@/lib/embedding/embeddingModel';
 import { preprocessText } from './textProcessing';
-import { initializeEmbeddings } from './embeddingPersistence';
 
-// Internal cache for runtime
-let assessmentEmbeddingsCache: EmbeddingCache = {};
+// Only keep query embeddings cache since assessment embeddings are now in the database
 let queryEmbeddingsCache: EmbeddingCache = {};
-
-// Check if embeddings are already loaded
-export const isEmbeddingCacheLoaded = (): boolean => {
-  return Object.keys(assessmentEmbeddingsCache).length > 0;
-};
 
 // Clear the embedding cache (useful for testing or forcing refresh)
 export const clearEmbeddingCache = (): void => {
-  assessmentEmbeddingsCache = {};
   queryEmbeddingsCache = {};
   console.log('Embedding cache cleared');
 };
@@ -44,30 +35,5 @@ export const getQueryEmbedding = async (query: string): Promise<number[]> => {
   } catch (error) {
     console.error('Error getting query embedding:', error);
     throw error;
-  }
-};
-
-// Generate and cache embeddings for all assessments
-export const generateAssessmentEmbeddings = async (assessments: Assessment[]): Promise<EmbeddingCache> => {
-  // If cache is empty, initialize from persistent storage
-  if (Object.keys(assessmentEmbeddingsCache).length === 0) {
-    assessmentEmbeddingsCache = await initializeEmbeddings();
-  }
-  
-  return assessmentEmbeddingsCache;
-};
-
-// Get cached embedding for a specific assessment
-export const getAssessmentEmbedding = (assessmentId: string): number[] | null => {
-  return assessmentEmbeddingsCache[assessmentId] || null;
-};
-
-// Preload embeddings for all assessments
-export const preloadEmbeddings = async (assessments: Assessment[]): Promise<void> => {
-  try {
-    await generateAssessmentEmbeddings(assessments);
-    console.log('Embeddings preloaded successfully');
-  } catch (error) {
-    console.error('Failed to preload embeddings:', error);
   }
 };
