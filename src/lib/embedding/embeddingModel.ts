@@ -1,18 +1,8 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-// Cache for embeddings to avoid redundant API calls
-let embeddingCache: { [text: string]: number[] } = {};
-
 // Get embeddings using OpenAI's text-embedding-ada-002 model
 export const getEmbeddings = async (texts: string[]): Promise<{ data: number[][] }> => {
-  // Check cache first for all texts
-  const cachedResults = texts.map(text => embeddingCache[text]);
-  if (cachedResults.every(result => result !== undefined)) {
-    console.log('All embeddings found in cache');
-    return { data: cachedResults };
-  }
-
   try {
     console.log(`Generating embeddings for ${texts.length} texts`);
     
@@ -29,12 +19,13 @@ export const getEmbeddings = async (texts: string[]): Promise<{ data: number[][]
       throw error;
     }
 
-    // Cache the embeddings for future use
-    texts.forEach((text, index) => {
-      embeddingCache[text] = data[index];
-    });
+    // Validate and ensure the response contains proper embeddings
+    if (!data || !Array.isArray(data) || data.some(item => !Array.isArray(item))) {
+      console.error('Invalid embedding response format:', data);
+      throw new Error('Invalid embedding format returned from API');
+    }
 
-    console.log(`Successfully generated ${data.length} embeddings`);
+    console.log(`Successfully generated ${data.length} embeddings with dimensions: ${data[0]?.length || 0}`);
     return { data };
   } catch (error) {
     console.error('Error getting embeddings:', error);
