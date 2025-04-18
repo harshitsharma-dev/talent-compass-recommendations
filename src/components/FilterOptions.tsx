@@ -41,6 +41,15 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
     console.log('FilterOptions rendered with:', { remote, adaptive, maxDuration, testTypes });
   }, [remote, adaptive, maxDuration, testTypes]);
 
+  // Debugging when component mounts and unmounts to help diagnose visibility issues
+  useEffect(() => {
+    console.log('FilterOptions component mounted');
+    
+    return () => {
+      console.log('FilterOptions component unmounted');
+    };
+  }, []);
+
   const handleTestTypeChange = (type: string) => {
     if (testTypes.includes(type)) {
       setTestTypes(testTypes.filter(t => t !== type));

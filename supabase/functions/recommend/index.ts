@@ -9,7 +9,11 @@ const supabase = createClient(supabaseUrl!, supabaseAnonKey!)
 Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    console.log("Responding to OPTIONS request with CORS headers")
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    })
   }
 
   try {
@@ -34,14 +38,18 @@ Deno.serve(async (req) => {
       .limit(10)
 
     if (error) {
+      console.error('Supabase error:', error)
       throw error
     }
 
     // Transform the assessments to match the expected response format
     const recommendedAssessments = assessments.map(assessment => ({
+      id: assessment.id || Math.random().toString(36).substr(2, 9),
+      title: assessment["Test Title"] || "Assessment",
       url: `https://www.shl.com${assessment.Link}`,
       adaptive_support: assessment['Adaptive/IRT'] === 'Yes',
       description: assessment.Description || 'No description available',
+      assessment_length: parseInt(assessment['Assessment Length']) || 45,
       duration: parseInt(assessment['Assessment Length']) || 45,
       remote_support: assessment['Remote Testing'] === 'Yes',
       test_type: assessment['Test Type'] ? [assessment['Test Type']] : ['Technical Assessment']
@@ -50,9 +58,17 @@ Deno.serve(async (req) => {
     console.log(`Found ${recommendedAssessments.length} recommendations`)
 
     return new Response(
-      JSON.stringify({ recommended_assessments: recommendedAssessments }),
+      JSON.stringify({ 
+        recommended_assessments: recommendedAssessments,
+        count: recommendedAssessments.length,
+        status: 'success'
+      }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+        },
         status: 200 
       }
     )
@@ -60,9 +76,18 @@ Deno.serve(async (req) => {
     console.error('Error in recommend function:', error)
     
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        recommended_assessments: [],
+        count: 0,
+        status: 'error'
+      }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+        },
         status: 500 
       }
     )
