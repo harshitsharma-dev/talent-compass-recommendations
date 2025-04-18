@@ -5,9 +5,14 @@ import { Textarea } from '@/components/ui/textarea';
 interface DescriptionInputProps {
   value: string;
   onChange: (value: string) => void;
+  placeholder?: string;
 }
 
-const DescriptionInput: React.FC<DescriptionInputProps> = ({ value, onChange }) => {
+const DescriptionInput: React.FC<DescriptionInputProps> = ({ 
+  value, 
+  onChange, 
+  placeholder = "Paste job description, hiring query, or content from URL will appear here..." 
+}) => {
   return (
     <div className="space-y-2">
       <label 
@@ -18,7 +23,7 @@ const DescriptionInput: React.FC<DescriptionInputProps> = ({ value, onChange }) 
       </label>
       <Textarea
         id="job-description"
-        placeholder="Paste job description, hiring query, or content from URL will appear here..."
+        placeholder={placeholder}
         className="min-h-[200px]"
         value={value}
         onChange={(e) => onChange(e.target.value)}

@@ -2,7 +2,15 @@
 export const extractContentFromUrl = async (url: string): Promise<string> => {
   try {
     console.log('Fetching content from URL:', url);
-    const response = await fetch(url);
+    
+    // Use a CORS proxy to avoid CORS issues
+    const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    
+    const response = await fetch(corsProxyUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
+    }
+    
     const html = await response.text();
     
     // Create a DOM parser to extract text content
@@ -12,15 +20,24 @@ export const extractContentFromUrl = async (url: string): Promise<string> => {
     // Remove script and style elements
     const scripts = doc.getElementsByTagName('script');
     const styles = doc.getElementsByTagName('style');
-    for (const element of [...scripts, ...styles]) {
-      element.remove();
+    for (const element of [...Array.from(scripts), ...Array.from(styles)]) {
+      element.parentNode?.removeChild(element);
     }
     
-    // Get text content
-    const textContent = doc.body.textContent || '';
+    // Get main content - prioritize content from article, main, or div with significant text
+    let mainContent = '';
+    const contentElements = doc.querySelectorAll('article, main, .content, #content, [role="main"]');
+    if (contentElements.length > 0) {
+      for (const element of Array.from(contentElements)) {
+        mainContent += element.textContent || '';
+      }
+    } else {
+      // Fallback to body content
+      mainContent = doc.body.textContent || '';
+    }
     
     // Clean up the text (remove extra whitespace, etc)
-    const cleanedContent = textContent
+    const cleanedContent = mainContent
       .replace(/\s+/g, ' ')
       .trim()
       .slice(0, 5000); // Limit content length
