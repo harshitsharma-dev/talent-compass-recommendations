@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
+import TestTypeFilter from './filters/TestTypeFilter';
+import DurationFilter from './filters/DurationFilter';
+import SupportFilter from './filters/SupportFilter';
 
 interface FilterOptionsProps {
   remote: boolean;
@@ -50,66 +50,23 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
         <h3 className="text-lg font-medium mb-4">Refine Results</h3>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="remote" 
-            checked={remote} 
-            onCheckedChange={() => setRemote(!remote)}
-          />
-          <Label htmlFor="remote">Remote Testing Available</Label>
-        </div>
+      <SupportFilter
+        remote={remote}
+        onRemoteChange={setRemote}
+        adaptive={adaptive}
+        onAdaptiveChange={setAdaptive}
+      />
 
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="adaptive" 
-            checked={adaptive} 
-            onCheckedChange={() => setAdaptive(!adaptive)}
-          />
-          <Label htmlFor="adaptive">Adaptive Testing</Label>
-        </div>
-      </div>
+      <DurationFilter
+        maxDuration={maxDuration}
+        onDurationChange={setMaxDuration}
+      />
 
-      <div className="space-y-3">
-        <div className="flex justify-between">
-          <Label htmlFor="duration">Max Duration (minutes)</Label>
-          <span className="text-sm text-muted-foreground">{maxDuration}</span>
-        </div>
-        <Slider
-          id="duration"
-          min={15}
-          max={180}
-          step={15}
-          value={[maxDuration]}
-          onValueChange={(values) => setMaxDuration(values[0])}
-          className="w-full"
-        />
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>15m</span>
-          <span>3h</span>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <Label>Assessment Types</Label>
-        <div className="grid grid-cols-1 gap-2">
-          {availableTestTypes.map((type) => (
-            <div key={type} className="flex items-center space-x-2">
-              <Checkbox
-                id={`type-${type}`}
-                checked={testTypes.includes(type)}
-                onCheckedChange={() => handleTestTypeChange(type)}
-              />
-              <Label 
-                htmlFor={`type-${type}`}
-                className="text-sm"
-              >
-                {type}
-              </Label>
-            </div>
-          ))}
-        </div>
-      </div>
+      <TestTypeFilter
+        testTypes={availableTestTypes}
+        selectedTypes={testTypes}
+        onTypeChange={handleTestTypeChange}
+      />
     </div>
   );
 };
