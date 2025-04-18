@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Assessment } from '@/lib/mockData';
 import { performVectorSearch } from '@/lib/search/vectorSearch';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
@@ -37,7 +36,7 @@ export const useAssessmentSearch = (initialQuery: string) => {
       });
   }, []);
 
-  const performSearch = async (searchQuery: string) => {
+  const performSearch = useCallback(async (searchQuery: string) => {
     setLoading(true);
     setShowNoResults(false);
     
@@ -45,13 +44,28 @@ export const useAssessmentSearch = (initialQuery: string) => {
     console.log('Filters:', filters);
     
     try {
-      const searchResults = await performVectorSearch({
-        query: searchQuery,
-        remote: filters.remote || undefined,
-        adaptive: filters.adaptive || undefined,
-        maxDuration: filters.maxDuration !== 120 ? filters.maxDuration : undefined,
-        testTypes: filters.testTypes.length > 0 ? filters.testTypes : undefined
-      });
+      let searchResults: Assessment[] = [];
+      
+      if (searchQuery.trim() === '') {
+        // If empty query, load all assessments
+        searchResults = await loadAssessmentData();
+        console.log(`Loaded all ${searchResults.length} assessments`);
+      } else {
+        // Otherwise perform vector search
+        try {
+          searchResults = await performVectorSearch({
+            query: searchQuery,
+            remote: filters.remote || undefined,
+            adaptive: filters.adaptive || undefined,
+            maxDuration: filters.maxDuration !== 120 ? filters.maxDuration : undefined,
+            testTypes: filters.testTypes.length > 0 ? filters.testTypes : undefined
+          });
+        } catch (error) {
+          console.error('Error in vector search, falling back to all assessments:', error);
+          searchResults = await loadAssessmentData();
+          toast.error('Search engine unavailable. Showing all assessments.');
+        }
+      }
       
       console.log(`Search returned ${searchResults.length} results`);
       setResults(searchResults);
@@ -69,17 +83,19 @@ export const useAssessmentSearch = (initialQuery: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
-  const updateFilters = (newFilters: Partial<SearchFilters>) => {
+  const updateFilters = useCallback((newFilters: Partial<SearchFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
-  };
+  }, []);
 
   return {
     query,
     setQuery,
     results,
+    setResults,
     loading,
+    setLoading,
     showNoResults,
     filters,
     updateFilters,

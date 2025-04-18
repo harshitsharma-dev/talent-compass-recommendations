@@ -24,7 +24,11 @@ const RecommendPage = () => {
         
         await loadAssessmentData();
         
-        await performVectorSearch({ query: "initialize model" });
+        try {
+          await performVectorSearch({ query: "initialize model" });
+        } catch (error) {
+          console.error('Failed to initialize search engine:', error);
+        }
         
         toast.dismiss();
         toast.success('Search engine ready');
@@ -83,6 +87,7 @@ const RecommendPage = () => {
       
       if (allAssessments.length === 0) {
         toast.error('No assessment data available. Please try again later.');
+        setIsLoading(false);
         return;
       }
       
@@ -92,12 +97,13 @@ const RecommendPage = () => {
       toast.dismiss();
       toast.success(`Found ${allAssessments.length} assessments`);
       
-      // Ensure we have data before navigating
-      navigate('/results');
+      setTimeout(() => {
+        navigate('/results', { replace: true });
+        setIsLoading(false);
+      }, 100);
     } catch (error) {
       console.error('Error loading assessments:', error);
       toast.error('Failed to load assessments. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
