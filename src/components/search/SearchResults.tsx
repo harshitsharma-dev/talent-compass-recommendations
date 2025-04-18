@@ -25,48 +25,53 @@ const SearchResults = ({ loading, showNoResults, results }: SearchResultsProps) 
     );
   }
 
-  // If there are results, show them
+  // If there are results, show them prominently
   if (results.length > 0) {
     return (
-      <div className="space-y-6">
-        <p className="text-sm text-muted-foreground pb-4">
-          Showing {results.length} {results.length === 1 ? 'assessment' : 'assessments'} based on your criteria.
+      <div className="space-y-6 w-full">
+        <p className="text-sm text-muted-foreground pb-4 font-semibold">
+          Showing {results.length} {results.length === 1 ? 'assessment' : 'assessments'} based on semantic search
         </p>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full">
           {results.map((assessment) => (
-            <AssessmentCard key={assessment.id} assessment={assessment} />
+            <AssessmentCard 
+              key={assessment.id} 
+              assessment={assessment} 
+              className="shadow-md hover:shadow-xl transition-shadow duration-300 ease-in-out" 
+            />
           ))}
         </div>
       </div>
     );
   }
 
+  // No results state
   if (showNoResults) {
     return (
-      <div className="space-y-8">
-        <Alert variant="destructive">
+      <div className="space-y-8 w-full">
+        <Alert variant="destructive" className="w-full">
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertDescription>
-            No matching assessments found. Try adjusting your search criteria.
+            No matching assessments found. Our semantic search couldn't locate relevant results.
           </AlertDescription>
         </Alert>
         
-        <div className="flex flex-col items-center justify-center py-16 text-center">
+        <div className="flex flex-col items-center justify-center py-16 text-center w-full">
           <Search className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No matching assessments found</h3>
+          <h3 className="text-xl font-semibold mb-2">No Semantic Matches Found</h3>
           <p className="text-muted-foreground mb-6 max-w-md">
-            Try broadening your search criteria or using different keywords.
+            Our advanced semantic search couldn't find assessments matching your query.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Button onClick={() => navigate('/recommend')} className="mt-4">
-              Try a Different Search
+              Try Another Search
             </Button>
             <Button 
               variant="outline" 
               onClick={() => window.location.reload()} 
               className="mt-4"
             >
-              Reset Results
+              Reset Search
             </Button>
           </div>
         </div>
