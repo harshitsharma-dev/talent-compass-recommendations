@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -12,11 +13,13 @@ import { Button } from '@/components/ui/button';
 import { Eye } from 'lucide-react';
 import { ApiKeyInput } from '@/components/ApiKeyInput';
 import { initializeEmbeddings } from '@/lib/search/embeddingPersistence';
+import { checkApiHealth, getRecommendations } from '@/lib/api/endpoints';
 
 const RecommendPage = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(true);
+  const [apiStatus, setApiStatus] = useState<string | null>(null);
   
   useEffect(() => {
     const initializeData = async () => {
@@ -26,6 +29,17 @@ const RecommendPage = () => {
         toast.loading('Loading assessment data and preparing search engine...', { id: 'init-loading' });
         
         const startTime = Date.now();
+        
+        // Check API health
+        const healthCheck = await checkApiHealth();
+        if (healthCheck) {
+          setApiStatus(healthCheck.status);
+          toast.success(`API is ${healthCheck.status}`);
+          console.log('API Health check:', healthCheck);
+        } else {
+          setApiStatus('offline');
+          toast.warning('API is currently offline, using local search');
+        }
         
         const storedEmbeddings = localStorage.getItem('assessment-embeddings-cache-v1');
         if (storedEmbeddings && JSON.parse(storedEmbeddings) && Object.keys(JSON.parse(storedEmbeddings)).length === 0) {
@@ -74,25 +88,19 @@ const RecommendPage = () => {
       console.log(`Searching for: "${query}"`);
       let results;
       
-      try {
-        results = await performVectorSearch({ query });
-      } catch (error) {
-        console.error('Error with vector search, falling back to simple filtering:', error);
-        
-        const allAssessments = await loadAssessmentData();
-        
-        if (query.trim()) {
-          const lowercaseQuery = query.toLowerCase();
-          results = allAssessments.filter(assessment => 
-            assessment.title.toLowerCase().includes(lowercaseQuery) || 
-            assessment.description.toLowerCase().includes(lowercaseQuery) ||
-            assessment.test_type.some(type => type.toLowerCase().includes(lowercaseQuery))
-          );
-        } else {
-          results = allAssessments;
+      // Try using the API first if available
+      if (apiStatus === 'healthy') {
+        try {
+          console.log('Using API for recommendations');
+          results = await getRecommendations(query);
+          console.log('API results:', results);
+        } catch (apiError) {
+          console.error('API recommendation error, falling back to local search:', apiError);
+          results = await performLocalSearch(query);
         }
-        
-        toast.warning('Advanced search unavailable, using basic search instead');
+      } else {
+        console.log('API not available, using local search');
+        results = await performLocalSearch(query);
       }
       
       console.log(`Found ${results.length} results, storing in session`);
@@ -113,6 +121,27 @@ const RecommendPage = () => {
       toast.error('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const performLocalSearch = async (query: string) => {
+    try {
+      return await performVectorSearch({ query });
+    } catch (error) {
+      console.error('Error with vector search, falling back to simple filtering:', error);
+      
+      const allAssessments = await loadAssessmentData();
+      
+      if (query.trim()) {
+        const lowercaseQuery = query.toLowerCase();
+        return allAssessments.filter(assessment => 
+          assessment.title.toLowerCase().includes(lowercaseQuery) || 
+          assessment.description.toLowerCase().includes(lowercaseQuery) ||
+          assessment.test_type.some(type => type.toLowerCase().includes(lowercaseQuery))
+        );
+      } else {
+        return allAssessments;
+      }
     }
   };
 
@@ -163,6 +192,18 @@ const RecommendPage = () => {
             <p className="text-lg text-muted-foreground mb-8">
               Enter a job description or hiring requirements, and our AI will recommend the most suitable assessment tools for your needs.
             </p>
+            
+            {apiStatus && (
+              <div className={`mb-4 p-3 rounded border ${apiStatus === 'healthy' ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}>
+                <p className="text-sm flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${apiStatus === 'healthy' ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                  API Status: 
+                  <span className={`font-medium ${apiStatus === 'healthy' ? 'text-green-700' : 'text-yellow-700'}`}>
+                    {apiStatus === 'healthy' ? 'Online' : 'Offline (using local search)'}
+                  </span>
+                </p>
+              </div>
+            )}
             
             <div className="mb-8">
               <ApiKeyInput />
