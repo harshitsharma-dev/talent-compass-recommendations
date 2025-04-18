@@ -1,4 +1,3 @@
-
 import { Assessment } from '@/lib/mockData';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 import { cosineSimilarity } from './vectorOperations';
@@ -23,7 +22,6 @@ interface SearchParams {
   requiredSkills?: string[];
 }
 
-// Filter assessments based on search parameters
 const filterAssessments = (assessments: Assessment[], params: SearchParams): Assessment[] => {
   console.log('Filtering assessments with params:', params);
   
@@ -34,13 +32,11 @@ const filterAssessments = (assessments: Assessment[], params: SearchParams): Ass
     if (params.adaptive === true && !assessment.adaptive_support) return false;
     if (params.maxDuration && assessment.assessment_length > (params.maxDuration * 1.1)) return false;
     
-    // More flexible test type matching
     if (params.testTypes?.length && !params.testTypes.some(type => 
       assessment.test_type.some(t => t.toLowerCase().includes(type.toLowerCase()) || 
                                     type.toLowerCase().includes(t.toLowerCase()))
     )) return false;
     
-    // More flexible skill matching
     if (params.requiredSkills?.length && !params.requiredSkills.some(skill => 
       assessmentText.includes(skill.toLowerCase())
     )) return false;
@@ -49,7 +45,6 @@ const filterAssessments = (assessments: Assessment[], params: SearchParams): Ass
   });
 };
 
-// Preload the assessment data and embeddings for faster searches
 export const preloadAssessmentData = async (): Promise<void> => {
   try {
     const allAssessments = await loadAssessmentData();
@@ -59,7 +54,6 @@ export const preloadAssessmentData = async (): Promise<void> => {
   }
 };
 
-// Main search function
 export const performVectorSearch = async (params: SearchParams): Promise<Assessment[]> => {
   const { query, ...filters } = params;
   console.log('Performing vector search with query:', query);
@@ -71,14 +65,15 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
       return [];
     }
     
-    // Extract additional parameters from query if not explicitly provided
-    const extractedDuration = filters.maxDuration || extractDurationFromQuery(query);
-    const extractedTestTypes = filters.testTypes?.length ? filters.testTypes : extractTestTypesFromQuery(query);
-    const extractedSkills = filters.requiredSkills?.length ? filters.requiredSkills : extractTechSkillsFromQuery(query);
+    const processedQuery = preprocessText(query);
+    console.log('Processed query:', processedQuery);
     
-    // Include query in searchParams
+    const extractedDuration = filters.maxDuration || extractDurationFromQuery(processedQuery);
+    const extractedTestTypes = filters.testTypes?.length ? filters.testTypes : extractTestTypesFromQuery(processedQuery);
+    const extractedSkills = filters.requiredSkills?.length ? filters.requiredSkills : extractTechSkillsFromQuery(processedQuery);
+    
     const searchParams: SearchParams = {
-      query,
+      query: processedQuery,
       ...filters,
       maxDuration: extractedDuration,
       testTypes: extractedTestTypes,
@@ -87,32 +82,27 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
     
     console.log('Search parameters:', JSON.stringify(searchParams, null, 2));
     
-    // Filter assessments
     const filteredAssessments = filterAssessments(allAssessments, searchParams);
     console.log(`Filtered to ${filteredAssessments.length} assessments`);
     
     if (filteredAssessments.length === 0) {
       console.log('No assessments passed the filters');
-      
-      // If no results after strict filtering, try with only the query text for semantic search
       if (Object.keys(filters).length > 0 || extractedTestTypes.length > 0 || extractedSkills.length > 0) {
         console.log('Attempting relaxed search with just the query text');
         return performVectorSearch({ query });
       }
-      
       return [];
     }
     
-    if (!query.trim()) {
+    if (!processedQuery.trim()) {
       console.log('Empty query, returning filtered assessments without ranking');
       return filteredAssessments.slice(0, 10);
     }
     
-    // Compute similarity scores
-    const queryEmbedding = await getQueryEmbedding(query);
+    const queryEmbedding = await getQueryEmbedding(processedQuery);
     const assessmentEmbeddings = await generateAssessmentEmbeddings(filteredAssessments);
     
-    console.log('Ranking assessments by similarity to query');
+    console.log('Ranking assessments by embedding similarity');
     const rankedResults = filteredAssessments
       .map(assessment => {
         const embedding = assessmentEmbeddings[assessment.id];
@@ -120,12 +110,12 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
           console.warn(`Missing embedding for assessment ID: ${assessment.id}`);
           return { assessment, similarity: 0 };
         }
-        return {
-          assessment,
-          similarity: cosineSimilarity(queryEmbedding, embedding)
-        };
+        const similarity = cosineSimilarity(queryEmbedding, embedding);
+        console.log(`Similarity score for ${assessment.title}: ${similarity}`);
+        return { assessment, similarity };
       })
       .sort((a, b) => b.similarity - a.similarity)
+      .filter(result => result.similarity > 0.1)
       .map(result => result.assessment)
       .slice(0, 10);
     

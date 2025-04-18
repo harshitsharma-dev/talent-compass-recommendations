@@ -1,16 +1,19 @@
-
 // Comprehensive text preprocessing for semantic search
 export const preprocessText = (text: string): string => {
   if (!text) return '';
   
-  // Normalize text: lowercase, remove extra spaces, replace punctuation with spaces
+  // First, handle commas and other punctuation carefully
   let processedText = text
     .toLowerCase()
-    .replace(/[^\w\s]/g, ' ')
+    // Replace commas with spaces but keep meaningful punctuation
+    .replace(/,/g, ' ')
+    // Remove other special characters but keep meaningful ones
+    .replace(/[^\w\s-_.]/g, ' ')
+    // Replace multiple spaces with single space
     .replace(/\s+/g, ' ')
     .trim();
   
-  // Comprehensive synonym mapping for better semantic understanding
+  // Handle common abbreviations and terms
   const synonymMap: {[key: string]: string} = {
     // Programming languages and technologies
     'js': 'javascript',
