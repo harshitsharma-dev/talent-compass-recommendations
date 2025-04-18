@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -11,6 +10,7 @@ import { performVectorSearch } from '@/lib/search/vectorSearch';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 import { Button } from '@/components/ui/button';
 import { Eye } from 'lucide-react';
+import { ApiKeyInput } from '@/components/ApiKeyInput';
 
 const RecommendPage = () => {
   const navigate = useNavigate();
@@ -23,7 +23,6 @@ const RecommendPage = () => {
       try {
         toast.loading('Loading assessment data...');
         
-        // Just preload the assessment data, don't try to initialize the model yet
         await loadAssessmentData();
         
         toast.dismiss();
@@ -48,15 +47,12 @@ const RecommendPage = () => {
       let results;
       
       try {
-        // Try vector search first
         results = await performVectorSearch({ query });
       } catch (error) {
         console.error('Error with vector search, falling back to simple filtering:', error);
         
-        // If vector search fails, just load all assessments and show them
         const allAssessments = await loadAssessmentData();
         
-        // Do a very simple text search if query exists
         if (query.trim()) {
           const lowercaseQuery = query.toLowerCase();
           results = allAssessments.filter(assessment => 
@@ -139,6 +135,10 @@ const RecommendPage = () => {
             <p className="text-lg text-muted-foreground mb-8">
               Enter a job description or hiring requirements, and our AI will recommend the most suitable assessment tools for your needs.
             </p>
+            
+            <div className="mb-8">
+              <ApiKeyInput />
+            </div>
             
             {isModelLoading ? (
               <div className="flex flex-col items-center justify-center py-8 mb-8">

@@ -1,4 +1,3 @@
-
 import { Assessment } from '@/lib/mockData';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 import { getEmbeddings } from '@/lib/embedding/embeddingModel';
@@ -14,6 +13,15 @@ interface SearchParams {
 
 // Cache for assessment embeddings
 let assessmentEmbeddings: { [key: string]: number[] } = {};
+
+// Enhanced text preprocessing
+const preprocessText = (text: string): string => {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')  // Replace punctuation with spaces
+    .replace(/\s+/g, ' ')      // Remove extra spaces
+    .trim();
+};
 
 // Fallback keyword-based search without embeddings
 const performKeywordSearch = (assessments: Assessment[], query: string): Assessment[] => {
@@ -98,7 +106,6 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
   const { query, ...filters } = params;
   
   try {
-    // Load and filter assessments
     const allAssessments = await loadAssessmentData();
     const filteredAssessments = filterAssessments(allAssessments, filters);
     
@@ -106,33 +113,33 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
       return [];
     }
 
-    // Try to use vector search first
-    try {
-      if (query.trim()) {
+    if (query.trim()) {
+      try {
+        // Preprocess query
+        const processedQuery = preprocessText(query);
+        
         // Get embeddings
-        const queryEmbedding = await getQueryEmbedding(query);
+        const queryEmbedding = await getQueryEmbedding(processedQuery);
         const assessmentEmbeddings = await getAssessmentEmbeddings(filteredAssessments);
 
-        // Calculate similarities and sort results
+        // Calculate similarities with threshold
+        const similarityThreshold = 0.6; // Adjust this threshold as needed
         const results = filteredAssessments
           .map(assessment => ({
             assessment,
             similarity: cosineSimilarity(queryEmbedding, assessmentEmbeddings[assessment.id])
           }))
+          .filter(result => result.similarity >= similarityThreshold)
           .sort((a, b) => b.similarity - a.similarity)
           .map(result => result.assessment);
 
-        return results;
-      }
-    } catch (error) {
-      console.warn('Vector search failed, falling back to keyword search:', error);
-      // If vector search fails, fall back to keyword search
-      if (query.trim()) {
+        return results.length > 0 ? results : performKeywordSearch(filteredAssessments, query);
+      } catch (error) {
+        console.warn('Vector search failed, falling back to keyword search:', error);
         return performKeywordSearch(filteredAssessments, query);
       }
     }
     
-    // If no query or both search methods failed, return all filtered assessments
     return filteredAssessments;
   } catch (error) {
     console.error('Error in search:', error);
