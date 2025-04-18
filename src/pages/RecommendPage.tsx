@@ -11,6 +11,7 @@ import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 import { Button } from '@/components/ui/button';
 import { Eye } from 'lucide-react';
 import { ApiKeyInput } from '@/components/ApiKeyInput';
+import { initializeEmbeddings } from '@/lib/search/embeddingPersistence';
 
 const RecommendPage = () => {
   const navigate = useNavigate();
@@ -21,15 +22,18 @@ const RecommendPage = () => {
     const initializeData = async () => {
       setIsModelLoading(true);
       try {
-        toast.loading('Loading assessment data...');
+        toast.loading('Loading assessment data and preparing search engine...');
         
-        await loadAssessmentData();
+        await Promise.all([
+          loadAssessmentData(),
+          initializeEmbeddings()
+        ]);
         
         toast.dismiss();
-        toast.success('Assessment data loaded');
+        toast.success('Search engine ready');
       } catch (error) {
-        console.error('Failed to load assessment data:', error);
-        toast.error('Failed to load assessment data. Some features may be limited.');
+        console.error('Failed to initialize search engine:', error);
+        toast.error('Failed to initialize search engine. Some features may be limited.');
       } finally {
         setIsModelLoading(false);
       }
