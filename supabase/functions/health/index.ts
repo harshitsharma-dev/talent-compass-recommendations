@@ -8,6 +8,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log("Health check endpoint called")
+    
     const response = {
       status: "healthy",
       timestamp: new Date().toISOString()
@@ -21,6 +23,8 @@ Deno.serve(async (req) => {
       }
     )
   } catch (error) {
+    console.error("Health check error:", error)
+    
     return new Response(
       JSON.stringify({ error: error.message }),
       { 

@@ -13,6 +13,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log("Recommend endpoint called")
+    
     if (req.method !== 'POST') {
       throw new Error('Method not allowed')
     }
@@ -45,6 +47,8 @@ Deno.serve(async (req) => {
       test_type: assessment['Test Type'] ? [assessment['Test Type']] : ['Technical Assessment']
     }))
 
+    console.log(`Found ${recommendedAssessments.length} recommendations`)
+
     return new Response(
       JSON.stringify({ recommended_assessments: recommendedAssessments }),
       { 
@@ -54,6 +58,7 @@ Deno.serve(async (req) => {
     )
   } catch (error) {
     console.error('Error in recommend function:', error)
+    
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
