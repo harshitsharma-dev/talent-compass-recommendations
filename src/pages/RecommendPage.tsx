@@ -7,7 +7,8 @@ import RecommendationForm from '@/components/RecommendationForm';
 import ExampleCard from '@/components/ExampleCard';
 import { toast } from 'sonner';
 import { exampleQueries } from '@/lib/mockData';
-import { performVectorSearch, loadAssessmentData } from '@/lib/vectorSearch';
+import { performVectorSearch } from '@/lib/search/vectorSearch';
+import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 
 const RecommendPage = () => {
   const navigate = useNavigate();

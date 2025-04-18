@@ -1,7 +1,8 @@
 
 import { useState, useEffect } from 'react';
 import { Assessment } from '@/lib/mockData';
-import { performVectorSearch, loadAssessmentData } from '@/lib/search/vectorSearch';
+import { performVectorSearch } from '@/lib/search/vectorSearch';
+import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 import { toast } from 'sonner';
 
 interface SearchFilters {
