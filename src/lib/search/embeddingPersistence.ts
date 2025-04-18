@@ -25,7 +25,9 @@ export const initializeEmbeddings = async (): Promise<EmbeddingCache> => {
           
           if (typeof assessment.embedding === 'string') {
             // Handle string format (JSON string)
-            embeddingArray = JSON.parse(assessment.embedding.replace(/'/g, '"'));
+            // Make sure we're working with a string before calling replace
+            const embeddingString = String(assessment.embedding);
+            embeddingArray = JSON.parse(embeddingString.replace(/'/g, '"'));
           } else if (Array.isArray(assessment.embedding)) {
             // Already an array
             embeddingArray = assessment.embedding;
