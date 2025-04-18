@@ -1,6 +1,5 @@
 
 import { Assessment } from './mockData';
-import Papa from 'papaparse';
 
 interface SearchParams {
   query: string;
@@ -12,6 +11,22 @@ interface SearchParams {
 
 // Store the parsed CSV data
 let parsedAssessments: Assessment[] = [];
+
+// Simple CSV parser function
+const parseCSV = (text: string): any[] => {
+  const lines = text.split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  
+  return lines.slice(1)
+    .filter(line => line.trim())
+    .map(line => {
+      const values = line.split(',').map(v => v.trim());
+      return headers.reduce((obj: any, header, index) => {
+        obj[header] = values[index];
+        return obj;
+      }, {});
+    });
+};
 
 // Function to load and parse the CSV file
 export const loadAssessmentData = (): Promise<Assessment[]> => {
@@ -32,37 +47,27 @@ export const loadAssessmentData = (): Promise<Assessment[]> => {
       })
       .then(csvText => {
         // Parse CSV data
-        Papa.parse(csvText, {
-          header: true,
-          complete: (results) => {
-            // Transform CSV data to match our Assessment interface
-            const assessmentData = results.data
-              .filter((row: any) => row.title && row.url) // Filter out incomplete rows
-              .map((row: any, index: number) => {
-                // Map CSV columns to our Assessment interface
-                return {
-                  id: String(index),
-                  title: row.title || 'Untitled Assessment',
-                  url: row.url || '#',
-                  remote_support: row.remote_support === 'Yes' || row.remote_support === 'true',
-                  adaptive_support: row.adaptive_support === 'Yes' || row.adaptive_support === 'true',
-                  test_type: row.test_type ? row.test_type.split(',').map((t: string) => t.trim()) : ['Technical Assessment'],
-                  description: row.description || 'No description available',
-                  job_levels: row.job_levels ? row.job_levels.split(',').map((j: string) => j.trim()) : ['All Levels'],
-                  languages: row.languages ? row.languages.split(',').map((l: string) => l.trim()) : ['English'],
-                  assessment_length: parseInt(row.assessment_length) || 45,
-                  downloads: parseInt(row.downloads) || 0
-                };
-              });
+        const results = parseCSV(csvText);
+        
+        // Transform CSV data to match our Assessment interface
+        const assessmentData = results
+          .filter(row => row.title && row.url)
+          .map((row, index) => ({
+            id: String(index),
+            title: row.title || 'Untitled Assessment',
+            url: row.url || '#',
+            remote_support: row.remote_support === 'Yes' || row.remote_support === 'true',
+            adaptive_support: row.adaptive_support === 'Yes' || row.adaptive_support === 'true',
+            test_type: row.test_type ? row.test_type.split(',').map((t: string) => t.trim()) : ['Technical Assessment'],
+            description: row.description || 'No description available',
+            job_levels: row.job_levels ? row.job_levels.split(',').map((j: string) => j.trim()) : ['All Levels'],
+            languages: row.languages ? row.languages.split(',').map((l: string) => l.trim()) : ['English'],
+            assessment_length: parseInt(row.assessment_length) || 45,
+            downloads: parseInt(row.downloads) || 0
+          }));
 
-            parsedAssessments = assessmentData;
-            resolve(assessmentData);
-          },
-          error: (error) => {
-            console.error('Error parsing CSV:', error);
-            reject(error);
-          }
-        });
+        parsedAssessments = assessmentData;
+        resolve(assessmentData);
       })
       .catch(error => {
         console.error('Error loading CSV file:', error);
