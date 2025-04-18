@@ -16,7 +16,7 @@ export const useAssessmentSearch = (initialQuery: string) => {
   const [filters, setFilters] = useState<SearchFilters>({
     remote: false,
     adaptive: false,
-    maxDuration: 180, // Changed from 120 to 180 to avoid filtering by default
+    maxDuration: 180, // Higher default to avoid filtering
     testTypes: [],
     requiredSkills: [],
   });
@@ -58,20 +58,32 @@ export const useAssessmentSearch = (initialQuery: string) => {
         if (apiResults && apiResults.length > 0) {
           console.log('Using API results');
           
-          // Apply client-side filtering based on the filters
-          const filteredApiResults = strictFilter(apiResults, searchFilters);
-          console.log(`After filtering: ${filteredApiResults.length} results remain`);
+          // Store the original API results first, so we always have something to show
+          setResults(apiResults);
           
-          // If all results were filtered out, try using the original results
-          const resultsToUse = filteredApiResults.length > 0 ? filteredApiResults : apiResults;
+          // If there are active filters besides maxDuration, apply them
+          const hasActiveFilters = 
+            searchFilters.remote === true || 
+            searchFilters.adaptive === true || 
+            searchFilters.testTypes.length > 0 ||
+            searchFilters.requiredSkills.length > 0;
           
-          setResults(resultsToUse);
-          setShowNoResults(resultsToUse.length === 0);
+          if (hasActiveFilters) {
+            // Apply client-side filtering based on the filters
+            const filteredApiResults = strictFilter(apiResults, searchFilters);
+            console.log(`After filtering: ${filteredApiResults.length} results remain`);
+            
+            // If we have filtered results, use them
+            if (filteredApiResults.length > 0) {
+              setResults(filteredApiResults);
+            }
+            // Otherwise keep the original results (we set them above)
+          }
           
           // Store results in session storage for persistence
           try {
             console.log('Storing results in session storage');
-            sessionStorage.setItem('assessment-results', JSON.stringify(resultsToUse));
+            sessionStorage.setItem('assessment-results', JSON.stringify(results));
             sessionStorage.setItem('assessment-query', searchQuery);
           } catch (storageError) {
             console.warn('Failed to store results in session storage:', storageError);
@@ -85,18 +97,28 @@ export const useAssessmentSearch = (initialQuery: string) => {
         toast.warning('API unavailable, using local search instead');
         
         try {
-          console.log('Attempting vector search');
+          console.log('Attempting vector search with force embeddings');
+          // Force use of embeddings by setting an explicit flag
           const rankedResults = await performVectorSearch({
             query: searchQuery,
-            ...searchFilters
+            ...searchFilters,
+            forceEmbedding: true
           });
           
           console.log(`Vector search returned ${rankedResults.length} results`);
-          setResults(rankedResults);
+          
+          if (rankedResults.length > 0) {
+            setResults(rankedResults);
+          } else {
+            // If no results from vector search, load all assessments as fallback
+            const allAssessments = await loadAssessmentData();
+            setResults(allAssessments.slice(0, 20)); // Show first 20 as fallback
+            console.log(`Showing ${allAssessments.slice(0, 20).length} assessments as fallback`);
+          }
           
           // Store results in session storage for persistence
           try {
-            sessionStorage.setItem('assessment-results', JSON.stringify(rankedResults));
+            sessionStorage.setItem('assessment-results', JSON.stringify(results));
             sessionStorage.setItem('assessment-query', searchQuery);
           } catch (storageError) {
             console.warn('Failed to store results in session storage:', storageError);
@@ -108,24 +130,15 @@ export const useAssessmentSearch = (initialQuery: string) => {
           }
         } catch (error) {
           console.error('Vector search error:', error);
-          setShowNoResults(true);
-          toast.warning('Advanced search unavailable, using basic search instead');
           
-          // Fallback to basic filtering if vector search fails
+          // Fallback to showing all assessments if vector search fails
           const allAssessments = await loadAssessmentData();
-          console.log(`Loaded ${allAssessments.length} assessments for basic filtering`);
-          
-          const filteredResults = strictFilter(allAssessments, searchFilters).slice(0, 10);
-          console.log(`Basic filtering returned ${filteredResults.length} results`);
-          
-          setResults(filteredResults);
-          if (filteredResults.length === 0) {
-            setShowNoResults(true);
-          }
+          console.log(`Loaded ${allAssessments.length} assessments as fallback`);
+          setResults(allAssessments.slice(0, 20)); // Show first 20
           
           // Store results in session storage for persistence
           try {
-            sessionStorage.setItem('assessment-results', JSON.stringify(filteredResults));
+            sessionStorage.setItem('assessment-results', JSON.stringify(allAssessments.slice(0, 20)));
             sessionStorage.setItem('assessment-query', searchQuery);
           } catch (storageError) {
             console.warn('Failed to store results in session storage:', storageError);
@@ -136,8 +149,15 @@ export const useAssessmentSearch = (initialQuery: string) => {
     } catch (error) {
       console.error('Error performing search:', error);
       toast.error('Failed to load recommendations. Please try again.');
-      setResults([]);
-      setShowNoResults(true);
+      
+      // Even after error, try to load some assessments as fallback
+      try {
+        const allAssessments = await loadAssessmentData();
+        setResults(allAssessments.slice(0, 20)); // Show first 20
+      } catch (e) {
+        setResults([]);
+        setShowNoResults(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -169,22 +189,21 @@ export const useAssessmentSearch = (initialQuery: string) => {
           
           if (assessmentResults.length > 0) {
             console.log('Sample result from storage:', assessmentResults[0]);
+            setResults(assessmentResults);
+          } else {
+            // If no stored results or empty array, load all assessments
+            assessmentResults = await loadAssessmentData();
+            setResults(assessmentResults.slice(0, 20)); // Show first 20
           }
         } catch (error) {
           console.error('Error parsing stored results:', error);
           assessmentResults = await loadAssessmentData();
+          setResults(assessmentResults.slice(0, 20)); // Show first 20
         }
       } else {
         console.log('No stored results found, loading all assessments');
         assessmentResults = await loadAssessmentData();
-      }
-      
-      console.log(`Setting ${assessmentResults.length} results to state`);
-      setResults(assessmentResults);
-      
-      if (assessmentResults.length === 0) {
-        console.log('No results to display, showing no results message');
-        setShowNoResults(true);
+        setResults(assessmentResults.slice(0, 20)); // Show first 20
       }
       
       return Promise.resolve();

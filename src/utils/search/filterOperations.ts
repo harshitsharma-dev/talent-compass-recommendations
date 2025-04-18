@@ -15,7 +15,7 @@ const testTypeMap = {
 export const strictFilter = (assessments: Assessment[], filters: Partial<SearchFilters>): Assessment[] => {
   console.log(`Filtering ${assessments.length} assessments with filters:`, filters);
   
-  // If no filters are active, return all assessments
+  // Check if any filters are active
   const hasActiveFilters = 
     filters.remote === true || 
     filters.adaptive === true || 
@@ -29,11 +29,11 @@ export const strictFilter = (assessments: Assessment[], filters: Partial<SearchF
   }
   
   const filtered = assessments.filter(assessment => {
-    // Debug individual assessment
+    // Convert assessment text to lowercase for case-insensitive comparison
     const assessmentText = `${assessment.title} ${assessment.description} ${assessment.test_type.join(' ')}`.toLowerCase();
     
-    // Filter by duration if specified
-    if (filters.maxDuration && assessment.assessment_length > filters.maxDuration) {
+    // Filter by duration if specified and less than default max
+    if (filters.maxDuration && filters.maxDuration < 180 && assessment.assessment_length > filters.maxDuration) {
       console.log(`Assessment "${assessment.title}" filtered out: duration ${assessment.assessment_length} > ${filters.maxDuration}`);
       return false;
     }
@@ -54,17 +54,17 @@ export const strictFilter = (assessments: Assessment[], filters: Partial<SearchF
     if (filters.testTypes?.length) {
       // Convert single-letter test types to descriptive names for comparison
       const assessmentTestTypes = assessment.test_type.map(type => {
-        // Map if it's a single-letter code, or use original if it's already a full name
         return testTypeMap[type] || type;
       });
       
       console.log(`Assessment "${assessment.title}" test types: ${assessmentTestTypes.join(', ')}`);
       
       const matchesTestType = filters.testTypes.some(filterType => 
-        assessmentTestTypes.some(assessmentType => 
-          assessmentType.toLowerCase().includes(filterType.toLowerCase()) ||
-          filterType.toLowerCase().includes(assessmentType.toLowerCase())
-        )
+        assessmentTestTypes.some(assessmentType => {
+          const filterLower = filterType.toLowerCase();
+          const assessmentLower = assessmentType.toLowerCase();
+          return assessmentLower.includes(filterLower) || filterLower.includes(assessmentLower);
+        })
       );
       
       if (!matchesTestType) {
