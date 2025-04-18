@@ -103,7 +103,7 @@ const initializeEmbeddingModel = async () => {
     embeddingPipeline = await pipeline(
       'feature-extraction',
       MODEL_NAME,
-      { quantized: true }
+      { device: 'cpu' }
     );
     console.log('Embedding model initialized');
     return embeddingPipeline;
@@ -139,7 +139,7 @@ const calculateAssessmentEmbeddings = async (assessments: Assessment[]) => {
       batch.forEach((assessment, index) => {
         assessmentEmbeddings.push({
           id: assessment.id,
-          embedding: Array.from(embeddings.data[index])
+          embedding: Array.from(embeddings.data[index]) as number[]
         });
       });
     }
