@@ -10,7 +10,7 @@ const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 export const checkApiHealth = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/health`, {
-      method: 'POST',
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${ANON_KEY}`,
