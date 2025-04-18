@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -6,29 +7,56 @@ import RecommendationForm from '@/components/RecommendationForm';
 import ExampleCard from '@/components/ExampleCard';
 import { toast } from 'sonner';
 import { exampleQueries } from '@/lib/mockData';
-import { performVectorSearch } from '@/lib/vectorSearch';
+import { performVectorSearch, loadAssessmentData } from '@/lib/vectorSearch';
 
 const RecommendPage = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Preload data when the page loads
+  React.useEffect(() => {
+    // Preload the assessment data in the background
+    loadAssessmentData()
+      .then(data => {
+        console.log(`Preloaded ${data.length} assessments`);
+      })
+      .catch(error => {
+        console.error('Failed to preload assessment data:', error);
+      });
+  }, []);
 
   const handleFormSubmit = async (query: string) => {
     try {
+      // Show loading state
+      setIsLoading(true);
+      
       // Show loading toast
       toast.loading('Finding relevant assessments...');
 
+      console.log(`Searching for: "${query}"`);
       // Perform the search
       const results = await performVectorSearch({ query });
       
+      console.log(`Found ${results.length} results, storing in session`);
       // Store both query and results in session storage
       sessionStorage.setItem('assessment-query', query);
       sessionStorage.setItem('assessment-results', JSON.stringify(results));
       
       // Clear loading toast and navigate
       toast.dismiss();
+      
+      if (results.length > 0) {
+        toast.success(`Found ${results.length} matching assessments`);
+      } else {
+        toast.info('No matching assessments found. Try a different query.');
+      }
+      
       navigate('/results');
     } catch (error) {
       console.error('Error performing search:', error);
       toast.error('Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -49,7 +77,7 @@ const RecommendPage = () => {
             </p>
             
             <div className="mb-12">
-              <RecommendationForm onSubmit={handleFormSubmit} />
+              <RecommendationForm onSubmit={handleFormSubmit} isLoading={isLoading} />
             </div>
             
             <div className="space-y-6">

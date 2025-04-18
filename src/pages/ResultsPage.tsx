@@ -12,6 +12,7 @@ import { Assessment } from '@/lib/mockData';
 import { ArrowLeft, Loader2, Filter, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Input } from '@/components/ui/input';
 
 const ResultsPage = () => {
   const navigate = useNavigate();
@@ -27,7 +28,11 @@ const ResultsPage = () => {
 
   // Preload CSV data when component mounts
   useEffect(() => {
+    console.log('ResultsPage: Loading assessment data');
     loadAssessmentData()
+      .then(data => {
+        console.log(`ResultsPage: Successfully loaded ${data.length} assessments`);
+      })
       .catch(error => {
         console.error('Failed to preload assessment data:', error);
         toast.error('Failed to load assessment data');
@@ -36,22 +41,40 @@ const ResultsPage = () => {
 
   // Fetch query from session storage and perform search
   useEffect(() => {
+    console.log('ResultsPage: Checking for stored search data');
     const storedQuery = sessionStorage.getItem('assessment-query');
     const storedResults = sessionStorage.getItem('assessment-results');
     
-    if (!storedQuery || !storedResults) {
+    if (!storedQuery) {
+      console.log('No query found in session storage, redirecting to search page');
       navigate('/recommend');
       return;
     }
     
+    console.log(`Found stored query: "${storedQuery}"`);
     setQuery(storedQuery);
-    setResults(JSON.parse(storedResults));
-    setLoading(false);
+    
+    if (storedResults) {
+      try {
+        const parsedResults = JSON.parse(storedResults);
+        console.log(`Loaded ${parsedResults.length} results from session storage`);
+        setResults(parsedResults);
+        setShowNoResults(parsedResults.length === 0);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error parsing stored results:', error);
+        performSearch(storedQuery); // Fall back to new search if parse fails
+      }
+    } else {
+      console.log('No results in session storage, performing new search');
+      performSearch(storedQuery);
+    }
   }, [navigate]);
 
   // Re-run search when filters change
   useEffect(() => {
-    if (query) {
+    if (query && !loading) {
+      console.log('Filters changed, re-running search');
       performSearch(query);
     }
   }, [remote, adaptive, maxDuration, testTypes]);
@@ -59,6 +82,9 @@ const ResultsPage = () => {
   const performSearch = async (searchQuery: string) => {
     setLoading(true);
     setShowNoResults(false);
+    
+    console.log(`Performing search with query: "${searchQuery}"`);
+    console.log('Filters:', { remote, adaptive, maxDuration, testTypes });
     
     try {
       const searchResults = await performVectorSearch({
@@ -69,7 +95,9 @@ const ResultsPage = () => {
         testTypes: testTypes.length > 0 ? testTypes : undefined
       });
       
+      console.log(`Search returned ${searchResults.length} results`);
       setResults(searchResults);
+      sessionStorage.setItem('assessment-results', JSON.stringify(searchResults));
       
       if (searchResults.length > 0) {
         toast.success(`Found ${searchResults.length} matching assessments`);
@@ -82,6 +110,13 @@ const ResultsPage = () => {
       toast.error('Failed to load recommendations. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleNewSearch = () => {
+    const searchInput = document.getElementById('quick-search') as HTMLInputElement;
+    if (searchInput && searchInput.value.trim()) {
+      performSearch(searchInput.value);
     }
   };
 
@@ -103,12 +138,26 @@ const ResultsPage = () => {
             </Button>
           </div>
           
-          {/* Search summary */}
+          {/* Search summary and quick search */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-3">Assessment Recommendations</h1>
-            <p className="text-muted-foreground">
-              Based on your query: <span className="font-medium text-foreground">{query}</span>
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mt-4">
+              <p className="text-muted-foreground flex-shrink-0">
+                Based on your query: <span className="font-medium text-foreground">{query}</span>
+              </p>
+              <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
+                <Input 
+                  id="quick-search" 
+                  placeholder="Refine your search..." 
+                  className="max-w-xs"
+                  defaultValue={query}
+                />
+                <Button onClick={handleNewSearch} className="whitespace-nowrap">
+                  <Search className="h-4 w-4 mr-2" />
+                  Search
+                </Button>
+              </div>
+            </div>
           </div>
           
           <div className="flex flex-col md:flex-row gap-8">
@@ -159,7 +208,7 @@ const ResultsPage = () => {
               {loading ? (
                 // Loading state
                 <div className="flex flex-col items-center justify-center py-16">
-                  <Loader2 className="h-12 w-12 animate-spin text-talent-primary mb-4" />
+                  <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
                   <p className="text-muted-foreground">Finding the best assessment tools...</p>
                 </div>
               ) : showNoResults ? (

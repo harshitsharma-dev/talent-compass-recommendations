@@ -33,21 +33,25 @@ export const loadAssessmentData = (): Promise<Assessment[]> => {
   return new Promise((resolve, reject) => {
     // Check if we already loaded the data
     if (parsedAssessments.length > 0) {
+      console.log(`Using cached data with ${parsedAssessments.length} assessments`);
       resolve(parsedAssessments);
       return;
     }
 
+    console.log('Fetching CSV data...');
     // Fetch the CSV file
     fetch('/combined_catalog_with_links_enriched_final.csv')
       .then(response => {
         if (!response.ok) {
-          throw new Error('Failed to load CSV file');
+          throw new Error(`Failed to load CSV file: ${response.status}`);
         }
         return response.text();
       })
       .then(csvText => {
         // Parse CSV data
+        console.log('CSV data fetched, parsing...');
         const results = parseCSV(csvText);
+        console.log(`Parsed ${results.length} rows from CSV`);
         
         // Transform CSV data to match our Assessment interface
         const assessmentData = results
@@ -66,6 +70,7 @@ export const loadAssessmentData = (): Promise<Assessment[]> => {
             downloads: parseInt(row.downloads) || 0
           }));
 
+        console.log(`Created ${assessmentData.length} assessment objects`);
         parsedAssessments = assessmentData;
         resolve(assessmentData);
       })
@@ -78,8 +83,11 @@ export const loadAssessmentData = (): Promise<Assessment[]> => {
 
 export const performVectorSearch = async (params: SearchParams): Promise<Assessment[]> => {
   try {
+    console.log('Performing search with params:', params);
+    
     // Load the CSV data if not already loaded
     const assessments = await loadAssessmentData();
+    console.log(`Loaded ${assessments.length} assessments for search`);
     
     // Simulate processing delay
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -87,6 +95,7 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
     // This is a very simplified simulation of semantic search
     // In reality, we would use vector similarity
     const normalizedQuery = params.query.toLowerCase();
+    console.log(`Normalized query: "${normalizedQuery}"`);
     
     const scoredAssessments = assessments.map(assessment => {
       // Calculate a simple relevance score based on text matching
@@ -140,16 +149,53 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
           }
         }
         
-        return true;
+        return item.score > 0; // Only return items with a positive score
       })
       .sort((a, b) => b.score - a.score)
       .map(item => item.assessment);
     
+    console.log(`Search returned ${results.length} results`);
+    
     // Return top results (max 20)
-    return results.slice(0, 20);
+    const finalResults = results.slice(0, 20);
+    console.log(`Returning ${finalResults.length} results after limiting to 20`);
+    
+    // Return a default result if nothing found to help debug
+    if (finalResults.length === 0 && params.query.trim()) {
+      console.log('No results found, returning default example result for debugging');
+      const dummyResult: Assessment = {
+        id: 'example-1',
+        title: 'Example Assessment (Debug: No matches found)',
+        description: `No results matched your query: "${params.query}". This is a debug result to verify the search function is working.`,
+        url: '#',
+        remote_support: true,
+        adaptive_support: false,
+        test_type: ['Technical Assessment'],
+        job_levels: ['All Levels'],
+        languages: ['English'],
+        assessment_length: 45,
+        downloads: 0
+      };
+      return [dummyResult];
+    }
+    
+    return finalResults;
   } catch (error) {
     console.error('Error during vector search:', error);
-    // Return empty array in case of error
-    return [];
+    // Return default debug assessment for error cases
+    const errorResult: Assessment = {
+      id: 'error-1',
+      title: 'Search Error Occurred',
+      description: 'An error occurred during the search. Please try again.',
+      url: '#',
+      remote_support: true,
+      adaptive_support: false,
+      test_type: ['Technical Assessment'],
+      job_levels: ['All Levels'],
+      languages: ['English'],
+      assessment_length: 45,
+      downloads: 0
+    };
+    return [errorResult];
   }
 };
