@@ -7,7 +7,7 @@ import AssessmentCard from '@/components/AssessmentCard';
 import FilterOptions from '@/components/FilterOptions';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { performVectorSearch } from '@/lib/vectorSearch';
+import { performVectorSearch, loadAssessmentData } from '@/lib/vectorSearch';
 import { Assessment } from '@/lib/mockData';
 import { ArrowLeft, Loader2, Filter, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -24,6 +24,15 @@ const ResultsPage = () => {
   const [maxDuration, setMaxDuration] = useState<number>(120);
   const [testTypes, setTestTypes] = useState<string[]>([]);
   const [showNoResults, setShowNoResults] = useState<boolean>(false);
+
+  // Preload CSV data when component mounts
+  useEffect(() => {
+    loadAssessmentData()
+      .catch(error => {
+        console.error('Failed to preload assessment data:', error);
+        toast.error('Failed to load assessment data');
+      });
+  }, []);
 
   // Fetch query from session storage and perform search
   useEffect(() => {
@@ -53,7 +62,7 @@ const ResultsPage = () => {
     setShowNoResults(false);
     
     try {
-      // Use our simulated vector search
+      // Use our CSV-based vector search
       const searchResults = await performVectorSearch({
         query: searchQuery,
         remote: remote || undefined,
