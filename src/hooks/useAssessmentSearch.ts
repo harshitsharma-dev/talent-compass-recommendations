@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Assessment } from '@/lib/mockData';
 import { performVectorSearch } from '@/lib/search/vectorSearch';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
@@ -20,21 +19,6 @@ export const useAssessmentSearch = (initialQuery: string) => {
     testTypes: [],
     requiredSkills: [],
   });
-
-  // Preload CSV data and embeddings when hook mounts
-  useEffect(() => {
-    console.log('Preloading assessment data and embeddings');
-    import('@/lib/search/vectorSearch').then(module => {
-      module.preloadAssessmentData()
-        .then(() => {
-          console.log('Assessment data and embeddings preloaded');
-        })
-        .catch(error => {
-          console.error('Failed to preload assessment data:', error);
-          toast.error('Failed to load assessment data');
-        });
-    });
-  }, []);
 
   // Complete search pipeline implementation
   const performSearch = useCallback(async (searchQuery: string) => {

@@ -30,9 +30,7 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
           header: true,
           skipEmptyLines: true,
           transformHeader: (header) => header.trim(),
-          // Add delimiter detection to handle commas in fields
           delimitersToGuess: [',', ';', '\t', '|'],
-          // More robust quoting handling
           quoteChar: '"',
         });
         
@@ -47,8 +45,7 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
         const assessmentData = results.data
           .filter((row: any) => row['Test Title'] && row['Link'])
           .map((row: any, index: number) => {
-            // Create a more robust assessment object
-            const assessment = {
+            return {
               id: String(index),
               title: row['Test Title'] || 'Untitled Assessment',
               url: row['Link'] ? `https://www.shl.com${row['Link']}` : '#',
@@ -59,15 +56,12 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
               job_levels: row['Job Levels'] ? row['Job Levels'].split(',').map((j: string) => j.trim()) : ['All Levels'],
               languages: row['Languages'] ? row['Languages'].split(',').map((l: string) => l.trim()) : ['English'],
               assessment_length: parseInt(row['Assessment Length']) || 45,
-              downloads: Math.floor(Math.random() * 5000) + 100 // Random download count since it's not in CSV
+              downloads: Math.floor(Math.random() * 5000) + 100
             };
-
-            return assessment;
           });
 
         console.log(`Created ${assessmentData.length} assessment objects`);
         
-        // Filter out any obviously invalid entries
         const validAssessments = assessmentData.filter(assessment => 
           assessment.title && assessment.title !== 'undefined' && 
           assessment.url && assessment.url !== 'https://www.shl.com#'
@@ -75,14 +69,6 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
         
         console.log(`After validation: ${validAssessments.length} assessment objects`);
         parsedAssessments = validAssessments;
-        
-        // Preload embeddings in the background
-        import('@/lib/search/embeddingCache').then(module => {
-          module.preloadEmbeddings(validAssessments);
-        }).catch(err => {
-          console.warn('Failed to preload embeddings in background:', err);
-        });
-        
         resolve(validAssessments);
       })
       .catch(error => {
