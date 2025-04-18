@@ -8,13 +8,15 @@ const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 /**
  * Check the health of the API
  */
-export const checkApiHealth = async (): Promise<{ status: string; timestamp: string } | null> => {
+export const checkApiHealth = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/health`, {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${ANON_KEY}`,
         'apikey': ANON_KEY
-      }
+      },
     });
     
     if (!response.ok) {
