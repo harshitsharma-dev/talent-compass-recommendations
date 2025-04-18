@@ -1,19 +1,13 @@
+
 import { EmbeddingCache } from '@/types/search';
 import { getEmbeddings } from '@/lib/embedding/embeddingModel';
 import { preprocessText } from './textProcessing';
 
-// Only keep query embeddings cache since assessment embeddings are now in the database
-let queryEmbeddingsCache: EmbeddingCache = {};
-
-// Clear the embedding cache (useful for testing or forcing refresh)
-export const clearEmbeddingCache = (): void => {
-  queryEmbeddingsCache = {};
-  console.log('Embedding cache cleared');
-};
+// Cache for search query embeddings
+const queryEmbeddingsCache: EmbeddingCache = {};
 
 // Get embedding for a search query with caching
 export const getQueryEmbedding = async (query: string): Promise<number[]> => {
-  // Normalize the query to ensure consistent cache hits
   const normalizedQuery = query.trim().toLowerCase();
   
   // Return from cache if available
@@ -24,11 +18,9 @@ export const getQueryEmbedding = async (query: string): Promise<number[]> => {
 
   try {
     const processedQuery = preprocessText(query);
-    console.log('Getting embedding for processed query:', processedQuery);
+    console.log('Getting embedding for query:', processedQuery);
     
     const embeddingResult = await getEmbeddings([processedQuery]);
-    
-    // Store in cache for future use
     queryEmbeddingsCache[normalizedQuery] = embeddingResult.data[0];
     
     return embeddingResult.data[0];
@@ -37,3 +29,4 @@ export const getQueryEmbedding = async (query: string): Promise<number[]> => {
     throw error;
   }
 };
+
