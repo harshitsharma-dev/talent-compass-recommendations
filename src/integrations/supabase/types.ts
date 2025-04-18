@@ -98,46 +98,46 @@ export type Database = {
       }
       assessments: {
         Row: {
-          adaptive_support: boolean | null
-          assessment_length: number | null
-          description: string | null
-          downloads: number | null
-          embedding: string | null
-          id: number
-          job_levels: string | null
-          languages: string | null
-          link: string | null
-          remote_support: boolean | null
-          test_type: string | null
-          title: string | null
+          "Adaptive/IRT": string | null
+          "Assessment Length": string | null
+          combined_text: string | null
+          Description: string | null
+          Downloads: string | null
+          embedding: Json | null
+          "Job Levels": string | null
+          Languages: string | null
+          Link: string | null
+          "Remote Testing": string | null
+          "Test Title": string | null
+          "Test Type": string | null
         }
         Insert: {
-          adaptive_support?: boolean | null
-          assessment_length?: number | null
-          description?: string | null
-          downloads?: number | null
-          embedding?: string | null
-          id?: number
-          job_levels?: string | null
-          languages?: string | null
-          link?: string | null
-          remote_support?: boolean | null
-          test_type?: string | null
-          title?: string | null
+          "Adaptive/IRT"?: string | null
+          "Assessment Length"?: string | null
+          combined_text?: string | null
+          Description?: string | null
+          Downloads?: string | null
+          embedding?: Json | null
+          "Job Levels"?: string | null
+          Languages?: string | null
+          Link?: string | null
+          "Remote Testing"?: string | null
+          "Test Title"?: string | null
+          "Test Type"?: string | null
         }
         Update: {
-          adaptive_support?: boolean | null
-          assessment_length?: number | null
-          description?: string | null
-          downloads?: number | null
-          embedding?: string | null
-          id?: number
-          job_levels?: string | null
-          languages?: string | null
-          link?: string | null
-          remote_support?: boolean | null
-          test_type?: string | null
-          title?: string | null
+          "Adaptive/IRT"?: string | null
+          "Assessment Length"?: string | null
+          combined_text?: string | null
+          Description?: string | null
+          Downloads?: string | null
+          embedding?: Json | null
+          "Job Levels"?: string | null
+          Languages?: string | null
+          Link?: string | null
+          "Remote Testing"?: string | null
+          "Test Title"?: string | null
+          "Test Type"?: string | null
         }
         Relationships: []
       }

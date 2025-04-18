@@ -25,20 +25,20 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
     }
 
     const validAssessments = assessments
-      .filter(row => row.title && row.link)
+      .filter(row => row["Test Title"] && row.Link)
       .map((row) => ({
         id: row.id.toString(),
-        title: row.title || 'Untitled Assessment',
-        url: row.link ? `https://www.shl.com${row.link}` : '#',
-        remote_support: row.remote_support || false,
-        adaptive_support: row.adaptive_support || false,
-        test_type: row.test_type ? [row.test_type] : ['Technical Assessment'],
-        description: row.description || 'No description available',
-        job_levels: row.job_levels ? row.job_levels.split(',').map((j: string) => j.trim()) : ['All Levels'],
-        languages: row.languages ? row.languages.split(',').map((l: string) => l.trim()) : ['English'],
-        assessment_length: row.assessment_length || 45,
-        downloads: row.downloads || Math.floor(Math.random() * 5000) + 100,
-        embedding: row.embedding
+        title: row["Test Title"] || 'Untitled Assessment',
+        url: row.Link ? `https://www.shl.com${row.Link}` : '#',
+        remote_support: row["Remote Testing"]?.toLowerCase() === 'yes',
+        adaptive_support: row["Adaptive/IRT"]?.toLowerCase() === 'yes',
+        test_type: row["Test Type"] ? [row["Test Type"]] : ['Technical Assessment'],
+        description: row.Description || 'No description available',
+        job_levels: row["Job Levels"] ? row["Job Levels"].split(',').map((j: string) => j.trim()) : ['All Levels'],
+        languages: row.Languages ? row.Languages.split(',').map((l: string) => l.trim()) : ['English'],
+        assessment_length: parseInt(row["Assessment Length"]) || 45,
+        downloads: parseInt(row.Downloads) || Math.floor(Math.random() * 5000) + 100,
+        embedding: row.embedding ? JSON.parse(row.embedding) : null
       }));
 
     console.log(`Found ${validAssessments.length} valid assessments`);
