@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -7,7 +6,7 @@ import AssessmentCard from '@/components/AssessmentCard';
 import FilterOptions from '@/components/FilterOptions';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { performVectorSearch, loadAssessmentData } from '@/lib/vectorSearch';
+import { performVectorSearch } from '@/lib/vectorSearch';
 import { Assessment } from '@/lib/mockData';
 import { ArrowLeft, Loader2, Filter, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -37,17 +36,16 @@ const ResultsPage = () => {
   // Fetch query from session storage and perform search
   useEffect(() => {
     const storedQuery = sessionStorage.getItem('assessment-query');
+    const storedResults = sessionStorage.getItem('assessment-results');
     
-    if (!storedQuery) {
-      // If no query found, redirect to recommend page
+    if (!storedQuery || !storedResults) {
       navigate('/recommend');
       return;
     }
     
     setQuery(storedQuery);
-    
-    // Perform the search
-    performSearch(storedQuery);
+    setResults(JSON.parse(storedResults));
+    setLoading(false);
   }, [navigate]);
 
   // Re-run search when filters change
@@ -62,7 +60,6 @@ const ResultsPage = () => {
     setShowNoResults(false);
     
     try {
-      // Use our CSV-based vector search
       const searchResults = await performVectorSearch({
         query: searchQuery,
         remote: remote || undefined,
@@ -73,7 +70,6 @@ const ResultsPage = () => {
       
       setResults(searchResults);
       
-      // Show toast with results count
       if (searchResults.length > 0) {
         toast.success(`Found ${searchResults.length} matching assessments`);
       } else {

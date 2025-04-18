@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -7,35 +6,34 @@ import RecommendationForm from '@/components/RecommendationForm';
 import ExampleCard from '@/components/ExampleCard';
 import { toast } from 'sonner';
 import { exampleQueries } from '@/lib/mockData';
+import { performVectorSearch } from '@/lib/vectorSearch';
 
 const RecommendPage = () => {
   const navigate = useNavigate();
 
-  const handleFormSubmit = (query: string) => {
+  const handleFormSubmit = async (query: string) => {
     try {
-      // Store the query in session storage
+      // Show loading toast
+      toast.loading('Finding relevant assessments...');
+
+      // Perform the search
+      const results = await performVectorSearch({ query });
+      
+      // Store both query and results in session storage
       sessionStorage.setItem('assessment-query', query);
+      sessionStorage.setItem('assessment-results', JSON.stringify(results));
       
-      // Redirect to results page
+      // Clear loading toast and navigate
+      toast.dismiss();
       navigate('/results');
-      
-      // Show toast notification
-      toast.success('Finding relevant assessments');
     } catch (error) {
-      console.error('Error handling form submission:', error);
+      console.error('Error performing search:', error);
       toast.error('Something went wrong. Please try again.');
     }
   };
 
-  const handleExampleClick = (example: typeof exampleQueries[0]) => {
-    // Store the example query in session storage
-    sessionStorage.setItem('assessment-query', example.description);
-    
-    // Redirect to results page
-    navigate('/results');
-    
-    // Show toast notification
-    toast.success('Finding relevant assessments');
+  const handleExampleClick = async (example: typeof exampleQueries[0]) => {
+    await handleFormSubmit(example.description);
   };
 
   return (
