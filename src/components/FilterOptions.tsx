@@ -26,14 +26,14 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
   setTestTypes,
 }) => {
   const availableTestTypes = [
-    "Coding", 
-    "Technical Knowledge", 
-    "Design", 
-    "Case Study", 
-    "Personality", 
-    "Scenario-Based",
+    "Technical Assessment",
+    "Coding Challenge",
+    "Behavioral Assessment",
+    "Skills Assessment",
+    "Personality Test",
+    "Cognitive Assessment",
     "Problem Solving",
-    "Role Play"
+    "Domain Knowledge"
   ];
 
   const handleTestTypeChange = (type: string) => {
@@ -47,7 +47,7 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium mb-4">Filter Options</h3>
+        <h3 className="text-lg font-medium mb-4">Refine Results</h3>
       </div>
 
       <div className="space-y-4">
@@ -57,7 +57,7 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
             checked={remote} 
             onCheckedChange={() => setRemote(!remote)}
           />
-          <Label htmlFor="remote">Remote Testing Only</Label>
+          <Label htmlFor="remote">Remote Testing Available</Label>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -66,7 +66,7 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
             checked={adaptive} 
             onCheckedChange={() => setAdaptive(!adaptive)}
           />
-          <Label htmlFor="adaptive">Adaptive Testing Only</Label>
+          <Label htmlFor="adaptive">Adaptive Testing</Label>
         </div>
       </div>
 
@@ -78,21 +78,21 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
         <Slider
           id="duration"
           min={15}
-          max={120}
-          step={5}
+          max={180}
+          step={15}
           value={[maxDuration]}
           onValueChange={(values) => setMaxDuration(values[0])}
           className="w-full"
         />
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>15m</span>
-          <span>120m</span>
+          <span>3h</span>
         </div>
       </div>
 
       <div className="space-y-3">
         <Label>Assessment Types</Label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2">
           {availableTestTypes.map((type) => (
             <div key={type} className="flex items-center space-x-2">
               <Checkbox

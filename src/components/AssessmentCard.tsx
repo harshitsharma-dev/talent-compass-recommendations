@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, Globe, BarChart3, ExternalLink } from 'lucide-react';
+import { Clock, Globe, BarChart3, ExternalLink, Download, Layers } from 'lucide-react';
 import { Assessment } from '@/lib/mockData';
 
 interface AssessmentCardProps {
@@ -26,7 +26,7 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
         </div>
       </CardHeader>
       <CardContent className="py-2 flex-grow">
-        <p className="text-muted-foreground mb-4">
+        <p className="text-muted-foreground mb-4 line-clamp-3">
           {assessment.description}
         </p>
         
@@ -37,15 +37,19 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
           </div>
           <div className="flex items-center gap-1.5">
             <Globe size={16} className="text-muted-foreground" />
-            <span>{assessment.remote_support ? 'Remote' : 'In-person'}</span>
+            <span>{assessment.remote_support ? 'Remote Support' : 'In-person Only'}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <BarChart3 size={16} className="text-muted-foreground" />
             <span>{assessment.adaptive_support ? 'Adaptive' : 'Fixed'}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">Languages:</span>
-            <span>{assessment.languages.join(', ')}</span>
+            <Layers size={16} className="text-muted-foreground" />
+            <span>{assessment.job_levels.join(', ')}</span>
+          </div>
+          <div className="col-span-2 flex items-center gap-1.5">
+            <Download size={16} className="text-muted-foreground" />
+            <span>{assessment.downloads.toLocaleString()} downloads</span>
           </div>
         </div>
       </CardContent>
