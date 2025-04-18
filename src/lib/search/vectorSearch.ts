@@ -99,7 +99,7 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
       
       // Count how many assessments have embeddings
       const embeddingsCount = filteredAssessments.reduce((count, assessment) => 
-        assessment['embedding'] ? count + 1 : count, 0);
+        assessment.embedding ? count + 1 : count, 0);
       
       console.log(`${embeddingsCount} out of ${filteredAssessments.length} filtered assessments have embeddings`);
       
@@ -123,26 +123,40 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
         return rankedResults.length > 0 ? rankedResults : filteredAssessments.slice(0, 10);
       }
       
+      // Debug to track embedding formats
+      console.log('Query embedding sample:', queryEmbedding.slice(0, 5));
+      let embeddingFormats = new Set();
+      filteredAssessments.slice(0, 5).forEach(a => {
+        if (a.embedding) {
+          embeddingFormats.add(typeof a.embedding);
+          if (Array.isArray(a.embedding)) {
+            console.log(`Sample assessment embedding (array): ${a.id}`, a.embedding.slice(0, 5));
+          }
+        }
+      });
+      console.log('Embedding formats found:', Array.from(embeddingFormats));
+      
       // Since assessments already have embeddings, we can directly use them
       const scoredAssessments = filteredAssessments
         .map(assessment => {
-          if (!assessment['embedding']) {
-            console.log(`No embedding found for assessment ID: ${assessment.id}`);
+          if (!assessment.embedding) {
             return { assessment, similarity: 0 };
           }
           
           let embeddingArray: number[];
           
           // Handle different embedding formats
-          if (typeof assessment['embedding'] === 'string') {
+          if (typeof assessment.embedding === 'string') {
             try {
-              embeddingArray = JSON.parse(assessment['embedding']);
+              // Convert string to array, handling both formats with single or double quotes
+              const embeddingString = String(assessment.embedding);
+              embeddingArray = JSON.parse(embeddingString.replace(/'/g, '"'));
             } catch (e) {
-              console.log(`Error parsing embedding for assessment ID: ${assessment.id}`);
+              console.log(`Error parsing embedding for assessment ID: ${assessment.id}`, e);
               return { assessment, similarity: 0 };
             }
           } else {
-            embeddingArray = assessment['embedding'];
+            embeddingArray = assessment.embedding;
           }
           
           // Ensure the embedding is a valid array before calculating similarity
@@ -152,6 +166,7 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
           }
           
           const similarity = cosineSimilarity(queryEmbedding, embeddingArray);
+          console.log(`Similarity score for "${assessment.title}": ${similarity.toFixed(3)}`);
           return { assessment, similarity };
         });
       

@@ -14,6 +14,8 @@ export const cosineSimilarity = (vecA: number[], vecB: number[]): number => {
     return 0;
   }
   
+  console.log(`Computing similarity between vectors of lengths ${vecA.length} and ${vecB.length}, using ${minLength} dimensions`);
+  
   let dotProduct = 0;
   let normA = 0;
   let normB = 0;

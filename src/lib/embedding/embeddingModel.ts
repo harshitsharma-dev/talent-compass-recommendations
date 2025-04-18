@@ -19,14 +19,26 @@ export const getEmbeddings = async (texts: string[]): Promise<{ data: number[][]
       throw error;
     }
 
-    // Validate and ensure the response contains proper embeddings
-    if (!data || !Array.isArray(data) || data.some(item => !Array.isArray(item))) {
-      console.error('Invalid embedding response format:', data);
-      throw new Error('Invalid embedding format returned from API');
+    // Validate the response format
+    if (!data) {
+      console.error('Empty response from embedding API:', data);
+      throw new Error('Empty embedding response from API');
+    }
+    
+    // Handle the case where data is an array of arrays (expected format)
+    if (Array.isArray(data) && data.every(item => Array.isArray(item))) {
+      console.log(`Successfully generated ${data.length} embeddings with dimensions: ${data[0]?.length || 0}`);
+      return { data };
+    }
+    
+    // Handle the case where data is wrapped in a data property
+    if (data.data && Array.isArray(data.data)) {
+      console.log(`Successfully generated ${data.data.length} embeddings with dimensions: ${data.data[0]?.length || 0}`);
+      return { data: data.data };
     }
 
-    console.log(`Successfully generated ${data.length} embeddings with dimensions: ${data[0]?.length || 0}`);
-    return { data };
+    console.error('Unexpected embedding response format:', data);
+    throw new Error('Invalid embedding format returned from API');
   } catch (error) {
     console.error('Error getting embeddings:', error);
     throw error;

@@ -42,10 +42,13 @@ serve(async (req) => {
     }
 
     const result = await response.json()
+    
+    // Extract and simplify the embedding data
+    const embeddings = result.data.map((item) => item.embedding);
     console.log('Successfully generated embeddings')
 
     return new Response(
-      JSON.stringify({ data: result.data.map((item: any) => item.embedding) }),
+      JSON.stringify(embeddings), // Return just the array of embeddings
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
@@ -61,4 +64,4 @@ serve(async (req) => {
       }
     )
   }
-})
+});
