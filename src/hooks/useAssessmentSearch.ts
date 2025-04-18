@@ -21,17 +21,19 @@ export const useAssessmentSearch = (initialQuery: string) => {
     requiredSkills: [],
   });
 
-  // Preload CSV data when hook mounts
+  // Preload CSV data and embeddings when hook mounts
   useEffect(() => {
-    console.log('Loading assessment data');
-    loadAssessmentData()
-      .then(data => {
-        console.log(`Successfully loaded ${data.length} assessments`);
-      })
-      .catch(error => {
-        console.error('Failed to preload assessment data:', error);
-        toast.error('Failed to load assessment data');
-      });
+    console.log('Preloading assessment data and embeddings');
+    import('@/lib/search/vectorSearch').then(module => {
+      module.preloadAssessmentData()
+        .then(() => {
+          console.log('Assessment data and embeddings preloaded');
+        })
+        .catch(error => {
+          console.error('Failed to preload assessment data:', error);
+          toast.error('Failed to load assessment data');
+        });
+    });
   }, []);
 
   // Complete search pipeline implementation
@@ -42,15 +44,6 @@ export const useAssessmentSearch = (initialQuery: string) => {
     console.log(`Performing search with query: "${searchQuery}"`);
     
     try {
-      let allAssessments = await loadAssessmentData();
-      console.log(`Loaded ${allAssessments.length} assessments`);
-      
-      if (searchQuery.trim() === '') {
-        setResults(allAssessments);
-        setLoading(false);
-        return;
-      }
-      
       // Extract parameters/constraints from query
       const extractedParams = extractSearchParameters(searchQuery);
       console.log('Extracted parameters:', extractedParams);
@@ -64,9 +57,6 @@ export const useAssessmentSearch = (initialQuery: string) => {
         requiredSkills: extractedParams.requiredSkills || [],
       };
       
-      // Apply filters and perform vector search
-      const filteredAssessments = strictFilter(allAssessments, searchFilters);
-      
       try {
         const rankedResults = await performVectorSearch({
           query: searchQuery,
@@ -75,10 +65,24 @@ export const useAssessmentSearch = (initialQuery: string) => {
         
         setResults(rankedResults);
         sessionStorage.setItem('assessment-results', JSON.stringify(rankedResults));
+        
+        if (rankedResults.length === 0) {
+          setShowNoResults(true);
+          console.log('No results found after vector search');
+        }
       } catch (error) {
         console.error('Vector search error:', error);
-        setResults(filteredAssessments);
+        setShowNoResults(true);
         toast.warning('Advanced search unavailable, using basic search instead');
+        
+        // Fallback to basic filtering if vector search fails
+        const allAssessments = await loadAssessmentData();
+        const filteredResults = strictFilter(allAssessments, searchFilters).slice(0, 10);
+        
+        setResults(filteredResults);
+        if (filteredResults.length === 0) {
+          setShowNoResults(true);
+        }
       }
       
     } catch (error) {

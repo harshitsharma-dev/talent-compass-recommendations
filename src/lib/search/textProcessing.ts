@@ -1,6 +1,8 @@
 
 // Comprehensive text preprocessing for semantic search
 export const preprocessText = (text: string): string => {
+  if (!text) return '';
+  
   // Normalize text: lowercase, remove extra spaces, replace punctuation with spaces
   let processedText = text
     .toLowerCase()
@@ -31,7 +33,21 @@ export const preprocessText = (text: string): string => {
     'cognitive': 'cognitive assessment logical thinking problem-solving intelligence',
     'personality': 'personality test behavior characteristics traits temperament',
     'soft skills': 'behavioral assessment communication teamwork interpersonal',
-    'analytical': 'analytical data-driven logical methodical'
+    'analytical': 'analytical data-driven logical methodical',
+    
+    // Additional terms for better matching
+    'tech': 'technology technical programming coding computer software',
+    'frontend': 'front-end ui user interface web browser client-side',
+    'backend': 'back-end api server database server-side',
+    'fullstack': 'full-stack frontend backend complete development',
+    'qa': 'quality assurance testing test verification',
+    'testing': 'test assessment evaluation examination challenge',
+    'assessment': 'test evaluation examination challenge measurement',
+    'quick': 'short fast rapid brief speedy',
+    'short': 'brief quick concise small minimal',
+    'long': 'extensive detailed comprehensive thorough',
+    'beginner': 'entry level junior novice starter learning',
+    'expert': 'senior advanced experienced professional master',
   };
   
   // Replace all instances of synonyms with expanded forms

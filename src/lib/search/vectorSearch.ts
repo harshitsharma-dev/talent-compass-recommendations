@@ -1,7 +1,6 @@
 
 import { Assessment } from '@/lib/mockData';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
-import { getEmbeddings } from '@/lib/embedding/embeddingModel';
 import { cosineSimilarity } from './vectorOperations';
 import { preprocessText } from './textProcessing';
 import { 
@@ -9,6 +8,11 @@ import {
   extractTechSkillsFromQuery, 
   extractTestTypesFromQuery 
 } from './queryExtraction';
+import { 
+  generateAssessmentEmbeddings, 
+  getQueryEmbedding, 
+  preloadEmbeddings 
+} from './embeddingCache';
 
 interface SearchParams {
   query: string;
@@ -19,57 +23,10 @@ interface SearchParams {
   requiredSkills?: string[];
 }
 
-// Cache for assessment embeddings
-let assessmentEmbeddings: { [key: string]: number[] } = {};
-
-// Get embedding for a search query
-const getQueryEmbedding = async (query: string): Promise<number[]> => {
-  try {
-    const processedQuery = preprocessText(query);
-    console.log('Getting embedding for processed query:', processedQuery);
-    
-    const embeddingResult = await getEmbeddings([processedQuery]);
-    return embeddingResult.data[0];
-  } catch (error) {
-    console.error('Error getting query embedding:', error);
-    throw error;
-  }
-};
-
-// Get embeddings for all assessments
-const getAssessmentEmbeddings = async (assessments: Assessment[]): Promise<{ [key: string]: number[] }> => {
-  if (Object.keys(assessmentEmbeddings).length > 0) {
-    return assessmentEmbeddings;
-  }
-
-  try {
-    console.log('Generating embeddings for assessments...');
-    const texts = assessments.map(a => 
-      preprocessText(
-        `${a.title} ${a.title} ${a.description} ${a.description} ` + 
-        `Test types: ${a.test_type.join(', ')} ${a.test_type.join(', ')} ` + 
-        `Job levels: ${a.job_levels.join(', ')} ` + 
-        `Duration: ${a.assessment_length} minutes ` +
-        `${a.remote_support ? 'Remote testing supported' : ''} ` +
-        `${a.adaptive_support ? 'Adaptive testing supported' : ''}`
-      )
-    );
-    
-    const embeddings = await getEmbeddings(texts);
-    assessmentEmbeddings = assessments.reduce((acc, assessment, index) => {
-      acc[assessment.id] = embeddings.data[index];
-      return acc;
-    }, {} as { [key: string]: number[] });
-
-    return assessmentEmbeddings;
-  } catch (error) {
-    console.error('Error generating assessment embeddings:', error);
-    throw error;
-  }
-};
-
 // Filter assessments based on search parameters
 const filterAssessments = (assessments: Assessment[], params: SearchParams): Assessment[] => {
+  console.log('Filtering assessments with params:', params);
+  
   return assessments.filter(assessment => {
     const assessmentText = `${assessment.title} ${assessment.description} ${assessment.test_type.join(' ')}`.toLowerCase();
     
@@ -77,16 +34,29 @@ const filterAssessments = (assessments: Assessment[], params: SearchParams): Ass
     if (params.adaptive === true && !assessment.adaptive_support) return false;
     if (params.maxDuration && assessment.assessment_length > (params.maxDuration * 1.1)) return false;
     
+    // More flexible test type matching
     if (params.testTypes?.length && !params.testTypes.some(type => 
-      assessment.test_type.some(t => t.toLowerCase().includes(type.toLowerCase()))
+      assessment.test_type.some(t => t.toLowerCase().includes(type.toLowerCase()) || 
+                                    type.toLowerCase().includes(t.toLowerCase()))
     )) return false;
     
+    // More flexible skill matching
     if (params.requiredSkills?.length && !params.requiredSkills.some(skill => 
       assessmentText.includes(skill.toLowerCase())
     )) return false;
     
     return true;
   });
+};
+
+// Preload the assessment data and embeddings for faster searches
+export const preloadAssessmentData = async (): Promise<void> => {
+  try {
+    const allAssessments = await loadAssessmentData();
+    await preloadEmbeddings(allAssessments);
+  } catch (error) {
+    console.error('Failed to preload assessment data:', error);
+  }
 };
 
 // Main search function
@@ -96,41 +66,71 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
   
   try {
     const allAssessments = await loadAssessmentData();
-    if (allAssessments.length === 0) return [];
+    if (allAssessments.length === 0) {
+      console.log('No assessments found in data source');
+      return [];
+    }
     
     // Extract additional parameters from query if not explicitly provided
     const extractedDuration = filters.maxDuration || extractDurationFromQuery(query);
     const extractedTestTypes = filters.testTypes?.length ? filters.testTypes : extractTestTypesFromQuery(query);
     const extractedSkills = filters.requiredSkills?.length ? filters.requiredSkills : extractTechSkillsFromQuery(query);
     
-    // Fix: Add query to the searchParams object
+    // Include query in searchParams
     const searchParams: SearchParams = {
-      query, // Add the query property here
+      query,
       ...filters,
       maxDuration: extractedDuration,
       testTypes: extractedTestTypes,
       requiredSkills: extractedSkills,
     };
     
+    console.log('Search parameters:', JSON.stringify(searchParams, null, 2));
+    
     // Filter assessments
     const filteredAssessments = filterAssessments(allAssessments, searchParams);
+    console.log(`Filtered to ${filteredAssessments.length} assessments`);
     
-    if (query.trim()) {
-      // Compute similarity scores
-      const queryEmbedding = await getQueryEmbedding(query);
-      const assessmentEmbeddings = await getAssessmentEmbeddings(filteredAssessments);
+    if (filteredAssessments.length === 0) {
+      console.log('No assessments passed the filters');
       
-      return filteredAssessments
-        .map(assessment => ({
-          assessment,
-          similarity: cosineSimilarity(queryEmbedding, assessmentEmbeddings[assessment.id])
-        }))
-        .sort((a, b) => b.similarity - a.similarity)
-        .map(result => result.assessment)
-        .slice(0, 10);
+      // If no results after strict filtering, try with only the query text for semantic search
+      if (Object.keys(filters).length > 0 || extractedTestTypes.length > 0 || extractedSkills.length > 0) {
+        console.log('Attempting relaxed search with just the query text');
+        return performVectorSearch({ query });
+      }
+      
+      return [];
     }
     
-    return filteredAssessments.slice(0, 10);
+    if (!query.trim()) {
+      console.log('Empty query, returning filtered assessments without ranking');
+      return filteredAssessments.slice(0, 10);
+    }
+    
+    // Compute similarity scores
+    const queryEmbedding = await getQueryEmbedding(query);
+    const assessmentEmbeddings = await generateAssessmentEmbeddings(filteredAssessments);
+    
+    console.log('Ranking assessments by similarity to query');
+    const rankedResults = filteredAssessments
+      .map(assessment => {
+        const embedding = assessmentEmbeddings[assessment.id];
+        if (!embedding) {
+          console.warn(`Missing embedding for assessment ID: ${assessment.id}`);
+          return { assessment, similarity: 0 };
+        }
+        return {
+          assessment,
+          similarity: cosineSimilarity(queryEmbedding, embedding)
+        };
+      })
+      .sort((a, b) => b.similarity - a.similarity)
+      .map(result => result.assessment)
+      .slice(0, 10);
+    
+    console.log(`Returning ${rankedResults.length} ranked results`);
+    return rankedResults;
   } catch (error) {
     console.error('Error in vector search:', error);
     return [];

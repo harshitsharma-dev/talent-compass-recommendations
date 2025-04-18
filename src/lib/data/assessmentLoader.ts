@@ -62,11 +62,6 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
               downloads: Math.floor(Math.random() * 5000) + 100 // Random download count since it's not in CSV
             };
 
-            // Log any problematic rows for debugging
-            if (!assessment.title || !assessment.url.includes('shl.com')) {
-              console.log('Potentially problematic row:', row);
-            }
-
             return assessment;
           });
 
@@ -80,6 +75,14 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
         
         console.log(`After validation: ${validAssessments.length} assessment objects`);
         parsedAssessments = validAssessments;
+        
+        // Preload embeddings in the background
+        import('@/lib/search/embeddingCache').then(module => {
+          module.preloadEmbeddings(validAssessments);
+        }).catch(err => {
+          console.warn('Failed to preload embeddings in background:', err);
+        });
+        
         resolve(validAssessments);
       })
       .catch(error => {

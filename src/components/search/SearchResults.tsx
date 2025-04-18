@@ -1,10 +1,11 @@
 
 import React from 'react';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Assessment } from '@/lib/mockData';
 import AssessmentCard from '@/components/AssessmentCard';
 import { useNavigate } from 'react-router-dom';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SearchResultsProps {
   loading: boolean;
@@ -24,16 +25,13 @@ const SearchResults = ({ loading, showNoResults, results }: SearchResultsProps) 
     );
   }
 
-  // If there are results, show them even if showNoResults is true
-  // This handles the case where the relaxed filters found results
+  // If there are results, show them
   if (results.length > 0) {
     return (
       <div className="space-y-6">
-        {results.length > 0 && (
-          <p className="text-sm text-muted-foreground pb-4">
-            Showing {results.length} {results.length === 1 ? 'assessment' : 'assessments'} based on your criteria.
-          </p>
-        )}
+        <p className="text-sm text-muted-foreground pb-4">
+          Showing {results.length} {results.length === 1 ? 'assessment' : 'assessments'} based on your criteria.
+        </p>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
           {results.map((assessment) => (
             <AssessmentCard key={assessment.id} assessment={assessment} />
@@ -45,15 +43,30 @@ const SearchResults = ({ loading, showNoResults, results }: SearchResultsProps) 
 
   if (showNoResults) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <Search className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-xl font-semibold mb-2">No matching assessments found</h3>
-        <p className="text-muted-foreground mb-6 max-w-md">
-          Try adjusting your filters or search query to find more assessments.
-        </p>
-        <Button onClick={() => navigate('/recommend')}>
-          Try a Different Search
-        </Button>
+      <div className="space-y-8">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4 mr-2" />
+          <AlertDescription>
+            No matching assessments found. Try adjusting your search criteria or filters.
+          </AlertDescription>
+        </Alert>
+        
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Search className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No matching assessments found</h3>
+          <p className="text-muted-foreground mb-6 max-w-md">
+            Try broadening your search criteria by:
+          </p>
+          <ul className="text-left text-muted-foreground mb-6 space-y-2">
+            <li>• Using fewer filters</li>
+            <li>• Trying more general search terms</li>
+            <li>• Checking for typos in your search query</li>
+            <li>• Increasing the maximum duration value</li>
+          </ul>
+          <Button onClick={() => navigate('/recommend')} className="mt-4">
+            Try a Different Search
+          </Button>
+        </div>
       </div>
     );
   }

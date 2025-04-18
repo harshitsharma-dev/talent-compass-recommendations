@@ -14,3 +14,7 @@ export interface SearchResult {
   similarityScore: number;
   matchedSkills: string[];
 }
+
+export interface EmbeddingCache {
+  [key: string]: number[];
+}
