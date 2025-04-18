@@ -1,3 +1,6 @@
 
 [functions.generate-assessment-embeddings]
 verify_jwt = true
+
+[functions.generate-embeddings]
+verify_jwt = true
