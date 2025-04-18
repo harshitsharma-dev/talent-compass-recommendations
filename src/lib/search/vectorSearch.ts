@@ -101,9 +101,11 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
     // Extract additional parameters from query if not explicitly provided
     const extractedDuration = filters.maxDuration || extractDurationFromQuery(query);
     const extractedTestTypes = filters.testTypes?.length ? filters.testTypes : extractTestTypesFromQuery(query);
-    const extractedSkills = extractTechSkillsFromQuery(query);
+    const extractedSkills = filters.requiredSkills?.length ? filters.requiredSkills : extractTechSkillsFromQuery(query);
     
-    const searchParams = {
+    // Fix: Add query to the searchParams object
+    const searchParams: SearchParams = {
+      query, // Add the query property here
       ...filters,
       maxDuration: extractedDuration,
       testTypes: extractedTestTypes,
