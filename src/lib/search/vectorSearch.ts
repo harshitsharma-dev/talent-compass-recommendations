@@ -1,9 +1,10 @@
 
 import { Assessment } from '@/lib/mockData';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
-import { cosineSimilarity } from './vectorOperations';
 import { preprocessText } from './textProcessing';
 import { getQueryEmbedding } from './embeddingCache';
+import { countAssessmentsWithEmbeddings } from './handlers/embeddingHandler';
+import { scoreAssessments, rankAssessments } from './services/similarityService';
 
 interface SearchParams {
   query: string;
@@ -31,47 +32,11 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
     try {
       const queryEmbedding = await getQueryEmbedding(processedQuery);
       
-      // Count how many assessments have embeddings
-      const embeddingsCount = allAssessments.reduce((count, assessment) => 
-        assessment.embedding ? count + 1 : count, 0);
-      
+      const embeddingsCount = countAssessmentsWithEmbeddings(allAssessments);
       console.log(`${embeddingsCount} out of ${allAssessments.length} assessments have embeddings`);
       
-      // Score all assessments based on similarity
-      const scoredAssessments = allAssessments
-        .map(assessment => {
-          if (!assessment.embedding) {
-            return { assessment, similarity: 0 };
-          }
-          
-          let embeddingArray: number[];
-          
-          if (typeof assessment.embedding === 'string') {
-            try {
-              embeddingArray = JSON.parse(String(assessment.embedding).replace(/'/g, '"'));
-            } catch (e) {
-              console.log(`Error parsing embedding for assessment ID: ${assessment.id}`, e);
-              return { assessment, similarity: 0 };
-            }
-          } else {
-            embeddingArray = assessment.embedding;
-          }
-          
-          if (!Array.isArray(embeddingArray)) {
-            console.log(`Invalid embedding format for assessment ID: ${assessment.id}`);
-            return { assessment, similarity: 0 };
-          }
-          
-          const similarity = cosineSimilarity(queryEmbedding, embeddingArray);
-          console.log(`Similarity score for "${assessment.title}": ${similarity.toFixed(3)}`);
-          return { assessment, similarity };
-        });
-      
-      // Get ranked results
-      return scoredAssessments
-        .sort((a, b) => b.similarity - a.similarity)
-        .map(result => result.assessment)
-        .slice(0, 10);
+      const scoredAssessments = scoreAssessments(allAssessments, queryEmbedding);
+      return rankAssessments(scoredAssessments);
       
     } catch (error) {
       console.error('Error during embedding ranking:', error);
