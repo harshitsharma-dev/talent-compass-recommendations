@@ -1,4 +1,3 @@
-
 // Comprehensive text preprocessing for semantic search
 export const preprocessText = (text: string): string => {
   if (!text) return '';
@@ -33,6 +32,7 @@ export const preprocessText = (text: string): string => {
     // Added more synonyms for common terms
     'script': 'javascript js programming coding',
     'coding': 'programming development implementation',
+    // Here was a duplicate 'assessment' entry - keeping only one
     'assessment': 'test evaluation examination challenge',
     'professionals': 'experts skilled workers specialists',
     'mid-level': 'intermediate experienced mid-career',
@@ -53,7 +53,7 @@ export const preprocessText = (text: string): string => {
     'fullstack': 'full-stack frontend backend complete development',
     'qa': 'quality assurance testing test verification',
     'testing': 'test assessment evaluation examination challenge',
-    'assessment': 'test evaluation examination challenge measurement',
+    // Removed duplicate 'assessment' entry that was here
     'quick': 'short fast rapid brief speedy',
     'short': 'brief quick concise small minimal',
     'long': 'extensive detailed comprehensive thorough',
