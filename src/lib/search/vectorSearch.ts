@@ -30,13 +30,24 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
     }
     
     try {
+      // Get embedding for the query
       const queryEmbedding = await getQueryEmbedding(processedQuery);
       
+      // Check how many assessments have embeddings
       const embeddingsCount = countAssessmentsWithEmbeddings(allAssessments);
       console.log(`${embeddingsCount} out of ${allAssessments.length} assessments have embeddings`);
       
+      if (embeddingsCount === 0) {
+        console.warn('No assessments with embeddings found, returning default results');
+        return allAssessments.slice(0, 10);
+      }
+      
+      // Score and rank assessments based on similarity to query embedding
       const scoredAssessments = scoreAssessments(allAssessments, queryEmbedding);
-      return rankAssessments(scoredAssessments);
+      const rankedResults = rankAssessments(scoredAssessments);
+      
+      console.log(`Vector search returned ${rankedResults.length} ranked results`);
+      return rankedResults;
       
     } catch (error) {
       console.error('Error during embedding ranking:', error);
