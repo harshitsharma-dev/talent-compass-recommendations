@@ -14,14 +14,14 @@ serve(async (req) => {
   }
 
   try {
-    const { texts } = await req.json()
+    const { texts, model = 'text-embedding-ada-002' } = await req.json()
     const openAiKey = Deno.env.get('OPENAI_API_KEY')
 
     if (!openAiKey) {
       throw new Error('OpenAI API key not configured')
     }
 
-    console.log('Generating embeddings for texts:', texts)
+    console.log(`Generating embeddings for ${texts.length} texts using model: ${model}`)
 
     const response = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
@@ -31,12 +31,14 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         input: texts,
-        model: 'text-embedding-3-small'
+        model: model  // Use the specified model, defaulting to text-embedding-ada-002
       })
     })
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`)
+      const errorText = await response.text();
+      console.error(`OpenAI API error (${response.status}): ${errorText}`);
+      throw new Error(`API request failed: ${response.statusText} - ${errorText}`)
     }
 
     const result = await response.json()
