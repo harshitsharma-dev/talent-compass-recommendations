@@ -22,7 +22,11 @@ const SearchSummary = ({ query, onSearch }: SearchSummaryProps) => {
       <h1 className="text-3xl font-bold mb-3">Assessment Recommendations</h1>
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mt-4">
         <p className="text-muted-foreground flex-shrink-0">
-          Based on your query: <span className="font-medium text-foreground">{query}</span>
+          {query ? (
+            <>Based on your query: <span className="font-medium text-foreground">{query}</span></>
+          ) : (
+            <span>Showing all available assessments</span>
+          )}
         </p>
         <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
           <Input 

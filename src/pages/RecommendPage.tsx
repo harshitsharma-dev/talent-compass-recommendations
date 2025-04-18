@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -9,23 +8,22 @@ import { toast } from 'sonner';
 import { exampleQueries } from '@/lib/mockData';
 import { performVectorSearch } from '@/lib/search/vectorSearch';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
+import { Button } from '@/components/ui/button';
+import { Eye } from 'lucide-react';
 
 const RecommendPage = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(true);
   
-  // Preload data and initialize models when the page loads
   useEffect(() => {
     const initializeData = async () => {
       setIsModelLoading(true);
       try {
         toast.loading('Initializing search engine...');
         
-        // Preload the assessment data in the background
         await loadAssessmentData();
         
-        // Perform a dummy search to initialize the embedding model
         await performVectorSearch({ query: "initialize model" });
         
         toast.dismiss();
@@ -43,22 +41,16 @@ const RecommendPage = () => {
 
   const handleFormSubmit = async (query: string) => {
     try {
-      // Show loading state
       setIsLoading(true);
-      
-      // Show loading toast
       toast.loading('Finding relevant assessments...');
-
+      
       console.log(`Searching for: "${query}"`);
-      // Perform the search
       const results = await performVectorSearch({ query });
       
       console.log(`Found ${results.length} results, storing in session`);
-      // Store both query and results in session storage
       sessionStorage.setItem('assessment-query', query);
       sessionStorage.setItem('assessment-results', JSON.stringify(results));
       
-      // Clear loading toast and navigate
       toast.dismiss();
       
       if (results.length > 0) {
@@ -78,6 +70,28 @@ const RecommendPage = () => {
 
   const handleExampleClick = async (example: typeof exampleQueries[0]) => {
     await handleFormSubmit(example.description);
+  };
+
+  const handleSeeAll = async () => {
+    try {
+      setIsLoading(true);
+      toast.loading('Loading all assessments...');
+      
+      const allAssessments = await loadAssessmentData();
+      
+      sessionStorage.setItem('assessment-query', '');
+      sessionStorage.setItem('assessment-results', JSON.stringify(allAssessments));
+      
+      toast.dismiss();
+      toast.success(`Found ${allAssessments.length} assessments`);
+      
+      navigate('/results');
+    } catch (error) {
+      console.error('Error loading assessments:', error);
+      toast.error('Failed to load assessments. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -105,6 +119,17 @@ const RecommendPage = () => {
             ) : (
               <div className="mb-12">
                 <RecommendationForm onSubmit={handleFormSubmit} isLoading={isLoading} />
+                <div className="mt-4 flex justify-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleSeeAll}
+                    disabled={isLoading || isModelLoading}
+                    className="gap-2"
+                  >
+                    <Eye size={16} />
+                    See All Assessments
+                  </Button>
+                </div>
               </div>
             )}
             
