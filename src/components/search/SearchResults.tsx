@@ -25,6 +25,12 @@ const SearchResults = ({ loading, showNoResults, results }: SearchResultsProps) 
     );
   }
 
+  console.log('SearchResults rendering with:', { 
+    resultsLength: results.length, 
+    showNoResults, 
+    firstResult: results[0] 
+  });
+
   // If there are results, show them
   if (results.length > 0) {
     return (

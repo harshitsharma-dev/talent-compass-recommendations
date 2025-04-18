@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { Assessment } from '@/lib/mockData';
 import { performVectorSearch } from '@/lib/search/vectorSearch';
@@ -17,7 +16,7 @@ export const useAssessmentSearch = (initialQuery: string) => {
   const [filters, setFilters] = useState<SearchFilters>({
     remote: false,
     adaptive: false,
-    maxDuration: 120,
+    maxDuration: 180, // Changed from 120 to 180 to avoid filtering by default
     testTypes: [],
     requiredSkills: [],
   });
@@ -43,7 +42,7 @@ export const useAssessmentSearch = (initialQuery: string) => {
       const searchFilters = {
         remote: filters.remote || extractedParams.remote || false,
         adaptive: filters.adaptive || extractedParams.adaptive || false,
-        maxDuration: filters.maxDuration !== 120 ? filters.maxDuration : extractedParams.maxDuration || 120,
+        maxDuration: filters.maxDuration !== 180 ? filters.maxDuration : extractedParams.maxDuration || 180,
         testTypes: filters.testTypes.length > 0 ? filters.testTypes : extractedParams.testTypes || [],
         requiredSkills: extractedParams.requiredSkills || [],
       };
@@ -63,20 +62,19 @@ export const useAssessmentSearch = (initialQuery: string) => {
           const filteredApiResults = strictFilter(apiResults, searchFilters);
           console.log(`After filtering: ${filteredApiResults.length} results remain`);
           
-          setResults(filteredApiResults);
+          // If all results were filtered out, try using the original results
+          const resultsToUse = filteredApiResults.length > 0 ? filteredApiResults : apiResults;
+          
+          setResults(resultsToUse);
+          setShowNoResults(resultsToUse.length === 0);
           
           // Store results in session storage for persistence
           try {
             console.log('Storing results in session storage');
-            sessionStorage.setItem('assessment-results', JSON.stringify(filteredApiResults));
+            sessionStorage.setItem('assessment-results', JSON.stringify(resultsToUse));
             sessionStorage.setItem('assessment-query', searchQuery);
           } catch (storageError) {
             console.warn('Failed to store results in session storage:', storageError);
-          }
-          
-          if (filteredApiResults.length === 0) {
-            console.log('No results after filtering API results');
-            setShowNoResults(true);
           }
         } else {
           console.log('No results from API, falling back to vector search');
