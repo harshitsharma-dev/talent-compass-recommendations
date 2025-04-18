@@ -1,3 +1,4 @@
+
 import { Assessment } from '@/lib/mockData';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 import { cosineSimilarity } from './vectorOperations';
@@ -81,6 +82,12 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
     // First, try strict filtering
     let filteredAssessments = filterAssessments(allAssessments, searchParams, true);
     
+    // If no results with strict filtering, try relaxed filtering
+    if (filteredAssessments.length === 0) {
+      console.log('No results with strict filtering, trying relaxed filtering');
+      filteredAssessments = filterAssessments(allAssessments, searchParams, false);
+    }
+    
     if (!processedQuery.trim()) {
       console.log('Empty query, returning filtered assessments without ranking');
       return filteredAssessments.slice(0, 10);
@@ -90,6 +97,32 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
       // Get query embedding
       const queryEmbedding = await getQueryEmbedding(processedQuery);
       
+      // Count how many assessments have embeddings
+      const embeddingsCount = filteredAssessments.reduce((count, assessment) => 
+        assessment['embedding'] ? count + 1 : count, 0);
+      
+      console.log(`${embeddingsCount} out of ${filteredAssessments.length} filtered assessments have embeddings`);
+      
+      // If less than 25% of assessments have embeddings, fall back to text-based ranking
+      if (embeddingsCount < filteredAssessments.length * 0.25) {
+        console.log('Too few embeddings available, using text-based ranking instead');
+        
+        // Simple text matching ranking
+        const rankedResults = filteredAssessments
+          .map(assessment => {
+            const titleMatch = assessment.title.toLowerCase().includes(processedQuery.toLowerCase()) ? 5 : 0;
+            const descMatch = assessment.description.toLowerCase().includes(processedQuery.toLowerCase()) ? 3 : 0;
+            const typeMatch = assessment.test_type.some(t => t.toLowerCase().includes(processedQuery.toLowerCase())) ? 4 : 0;
+            const score = titleMatch + descMatch + typeMatch;
+            return { assessment, score };
+          })
+          .sort((a, b) => b.score - a.score)
+          .map(result => result.assessment)
+          .slice(0, 10);
+        
+        return rankedResults.length > 0 ? rankedResults : filteredAssessments.slice(0, 10);
+      }
+      
       // Since assessments already have embeddings, we can directly use them
       const scoredAssessments = filteredAssessments
         .map(assessment => {
@@ -97,19 +130,50 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
             console.log(`No embedding found for assessment ID: ${assessment.id}`);
             return { assessment, similarity: 0 };
           }
-          const similarity = cosineSimilarity(queryEmbedding, assessment['embedding']);
+          
+          let embeddingArray: number[];
+          
+          // Handle different embedding formats
+          if (typeof assessment['embedding'] === 'string') {
+            try {
+              embeddingArray = JSON.parse(assessment['embedding']);
+            } catch (e) {
+              console.log(`Error parsing embedding for assessment ID: ${assessment.id}`);
+              return { assessment, similarity: 0 };
+            }
+          } else {
+            embeddingArray = assessment['embedding'];
+          }
+          
+          // Ensure the embedding is a valid array before calculating similarity
+          if (!Array.isArray(embeddingArray)) {
+            console.log(`Invalid embedding format for assessment ID: ${assessment.id}`);
+            return { assessment, similarity: 0 };
+          }
+          
+          const similarity = cosineSimilarity(queryEmbedding, embeddingArray);
           return { assessment, similarity };
         });
       
-      // Filter and sort by similarity
-      const threshold = scoredAssessments.length < 5 ? 0.05 : 0.1;
-      const rankedResults = scoredAssessments
+      // Lower threshold if we have few results with embeddings
+      const threshold = embeddingsCount < 10 ? 0.01 : 0.05;
+      
+      // Get ranked results with a similarity score
+      let rankedResults = scoredAssessments
         .filter(result => result.similarity > threshold)
         .sort((a, b) => b.similarity - a.similarity)
-        .map(result => result.assessment)
-        .slice(0, 10);
+        .map(result => result.assessment);
       
-      return rankedResults;
+      // If no results pass the threshold, return top results regardless of score
+      if (rankedResults.length === 0) {
+        console.log('No results above similarity threshold, returning top matches regardless');
+        rankedResults = scoredAssessments
+          .sort((a, b) => b.similarity - a.similarity)
+          .map(result => result.assessment)
+          .slice(0, 10);
+      }
+      
+      return rankedResults.slice(0, 10);
       
     } catch (error) {
       console.error('Error during embedding ranking:', error);

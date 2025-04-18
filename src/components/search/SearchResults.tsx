@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { Loader2, Search, AlertCircle } from 'lucide-react';
+import { Loader2, Search, AlertCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Assessment } from '@/lib/mockData';
 import AssessmentCard from '@/components/AssessmentCard';
 import { useNavigate } from 'react-router-dom';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface SearchResultsProps {
   loading: boolean;
