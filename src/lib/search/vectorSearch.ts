@@ -1,11 +1,9 @@
-
 import { Assessment } from '@/lib/mockData';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 import { cosineSimilarity } from './vectorOperations';
 import { preprocessText } from './textProcessing';
 import { extractDurationFromQuery, extractTechSkillsFromQuery, extractTestTypesFromQuery } from './queryExtraction';
 import { getQueryEmbedding } from './embeddingCache';
-import { supabase } from '@/integrations/supabase/client';
 
 interface SearchParams {
   query: string;
@@ -92,35 +90,14 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
       // Get query embedding
       const queryEmbedding = await getQueryEmbedding(processedQuery);
       
-      // Fetch embeddings from the database
-      const { data: embeddingsData, error } = await supabase
-        .from('assessment_embeddings')
-        .select('assessment_id, embedding');
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Create a map of assessment IDs to embeddings
-      const embeddingsMap = new Map(
-        embeddingsData.map(row => {
-          // Convert embedding from string to number[] if needed
-          const embedding = typeof row.embedding === 'string' 
-            ? JSON.parse(row.embedding) 
-            : row.embedding;
-          return [row.assessment_id, embedding];
-        })
-      );
-      
-      // Rank assessments by similarity
+      // Since assessments already have embeddings, we can directly use them
       const scoredAssessments = filteredAssessments
         .map(assessment => {
-          const embedding = embeddingsMap.get(assessment.id);
-          if (!embedding) {
+          if (!assessment['embedding']) {
             console.log(`No embedding found for assessment ID: ${assessment.id}`);
             return { assessment, similarity: 0 };
           }
-          const similarity = cosineSimilarity(queryEmbedding, embedding);
+          const similarity = cosineSimilarity(queryEmbedding, assessment['embedding']);
           return { assessment, similarity };
         });
       
