@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -6,7 +7,7 @@ import AssessmentCard from '@/components/AssessmentCard';
 import FilterOptions from '@/components/FilterOptions';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { performVectorSearch } from '@/lib/vectorSearch';
+import { performVectorSearch, loadAssessmentData } from '@/lib/vectorSearch';
 import { Assessment } from '@/lib/mockData';
 import { ArrowLeft, Loader2, Filter, Search } from 'lucide-react';
 import { toast } from 'sonner';
