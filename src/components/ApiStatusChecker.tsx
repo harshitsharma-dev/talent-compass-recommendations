@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { checkApiHealth } from '@/lib/api/endpoints';
 import { Button } from './ui/button';
