@@ -37,6 +37,25 @@ export const useAssessmentSearch = (initialQuery: string) => {
       });
   }, []);
 
+  // Simple text search without embeddings
+  const performTextSearch = async (searchQuery: string): Promise<Assessment[]> => {
+    const allAssessments = await loadAssessmentData();
+    
+    if (!searchQuery.trim()) {
+      return allAssessments;
+    }
+    
+    const keywords = searchQuery.toLowerCase().split(/\s+/).filter(k => k.length > 2);
+    if (keywords.length === 0) {
+      return allAssessments;
+    }
+    
+    return allAssessments.filter(assessment => {
+      const searchableText = `${assessment.title} ${assessment.description} ${assessment.test_type.join(' ')}`.toLowerCase();
+      return keywords.some(keyword => searchableText.includes(keyword));
+    });
+  };
+
   const performSearch = useCallback(async (searchQuery: string) => {
     setLoading(true);
     setShowNoResults(false);
@@ -52,7 +71,7 @@ export const useAssessmentSearch = (initialQuery: string) => {
         searchResults = await loadAssessmentData();
         console.log(`Loaded all ${searchResults.length} assessments`);
       } else {
-        // Otherwise perform vector search
+        // Try vector search first
         try {
           searchResults = await performVectorSearch({
             query: searchQuery,
@@ -62,9 +81,20 @@ export const useAssessmentSearch = (initialQuery: string) => {
             testTypes: filters.testTypes.length > 0 ? filters.testTypes : undefined
           });
         } catch (error) {
-          console.error('Error in vector search, falling back to all assessments:', error);
-          searchResults = await loadAssessmentData();
-          toast.error('Search engine unavailable. Showing all assessments.');
+          console.error('Error in vector search, falling back to text search:', error);
+          // Fall back to simple text search
+          const textResults = await performTextSearch(searchQuery);
+          
+          // Apply filters
+          searchResults = textResults.filter(assessment => {
+            if (filters.remote && !assessment.remote_support) return false;
+            if (filters.adaptive && !assessment.adaptive_support) return false;
+            if (filters.maxDuration !== 120 && assessment.assessment_length > filters.maxDuration) return false;
+            if (filters.testTypes.length > 0 && !filters.testTypes.some(type => assessment.test_type.includes(type))) return false;
+            return true;
+          });
+          
+          toast.warning('Advanced search unavailable, using basic search instead');
         }
       }
       
@@ -86,7 +116,7 @@ export const useAssessmentSearch = (initialQuery: string) => {
     }
   }, [filters]);
 
-  // Add the missing loadInitialData function
+  // Load initial data function for the ResultsPage
   const loadInitialData = useCallback(async (): Promise<void> => {
     setLoading(true);
     setShowNoResults(false);
@@ -98,7 +128,12 @@ export const useAssessmentSearch = (initialQuery: string) => {
       
       if (storedResults) {
         console.log('Loading results from session storage');
-        assessmentResults = JSON.parse(storedResults);
+        try {
+          assessmentResults = JSON.parse(storedResults);
+        } catch (error) {
+          console.error('Error parsing stored results:', error);
+          assessmentResults = await loadAssessmentData();
+        }
       } else {
         console.log('No stored results found, loading all assessments');
         // If no results in session storage, load all assessments
@@ -138,6 +173,6 @@ export const useAssessmentSearch = (initialQuery: string) => {
     filters,
     updateFilters,
     performSearch,
-    loadInitialData,  // Add the function to the returned object
+    loadInitialData,
   };
 };

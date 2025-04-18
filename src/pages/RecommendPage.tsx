@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -20,21 +21,16 @@ const RecommendPage = () => {
     const initializeData = async () => {
       setIsModelLoading(true);
       try {
-        toast.loading('Initializing search engine...');
+        toast.loading('Loading assessment data...');
         
+        // Just preload the assessment data, don't try to initialize the model yet
         await loadAssessmentData();
         
-        try {
-          await performVectorSearch({ query: "initialize model" });
-        } catch (error) {
-          console.error('Failed to initialize search engine:', error);
-        }
-        
         toast.dismiss();
-        toast.success('Search engine ready');
+        toast.success('Assessment data loaded');
       } catch (error) {
-        console.error('Failed to initialize search engine:', error);
-        toast.error('Failed to initialize search engine. Some features may be limited.');
+        console.error('Failed to load assessment data:', error);
+        toast.error('Failed to load assessment data. Some features may be limited.');
       } finally {
         setIsModelLoading(false);
       }
@@ -49,7 +45,31 @@ const RecommendPage = () => {
       toast.loading('Finding relevant assessments...');
       
       console.log(`Searching for: "${query}"`);
-      const results = await performVectorSearch({ query });
+      let results;
+      
+      try {
+        // Try vector search first
+        results = await performVectorSearch({ query });
+      } catch (error) {
+        console.error('Error with vector search, falling back to simple filtering:', error);
+        
+        // If vector search fails, just load all assessments and show them
+        const allAssessments = await loadAssessmentData();
+        
+        // Do a very simple text search if query exists
+        if (query.trim()) {
+          const lowercaseQuery = query.toLowerCase();
+          results = allAssessments.filter(assessment => 
+            assessment.title.toLowerCase().includes(lowercaseQuery) || 
+            assessment.description.toLowerCase().includes(lowercaseQuery) ||
+            assessment.test_type.some(type => type.toLowerCase().includes(lowercaseQuery))
+          );
+        } else {
+          results = allAssessments;
+        }
+        
+        toast.warning('Advanced search unavailable, using basic search instead');
+      }
       
       console.log(`Found ${results.length} results, storing in session`);
       sessionStorage.setItem('assessment-query', query);

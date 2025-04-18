@@ -20,7 +20,7 @@ export const initializeEmbeddingModel = async () => {
     embeddingPipeline = await pipeline(
       'feature-extraction',
       MODEL_NAME,
-      { device: 'cpu' }
+      { device: 'wasm' }  // Changed from 'cpu' to 'wasm'
     );
     console.log('Embedding model initialized');
     return embeddingPipeline;
