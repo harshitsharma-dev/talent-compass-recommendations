@@ -1,44 +1,6 @@
 
+import Papa from 'papaparse';
 import { Assessment } from '../mockData';
-
-// Simple CSV parser function
-const parseCSV = (text: string): any[] => {
-  const lines = text.split('\n');
-  const headers = lines[0].split(',').map(h => h.trim());
-  
-  return lines.slice(1)
-    .filter(line => line.trim())
-    .map(line => {
-      // Handle quoted values with commas properly
-      const values = [];
-      let inQuotes = false;
-      let currentValue = '';
-      
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        
-        if (char === '"' && (i === 0 || line[i-1] !== '\\')) {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          values.push(currentValue.trim());
-          currentValue = '';
-        } else {
-          currentValue += char;
-        }
-      }
-      
-      // Add the last value
-      values.push(currentValue.trim());
-      
-      // Create object from headers and values
-      return headers.reduce((obj: any, header, index) => {
-        const value = values[index] || '';
-        // Remove quotes from the beginning and end if they exist
-        obj[header] = value.replace(/^"|"$/g, '');
-        return obj;
-      }, {});
-    });
-};
 
 // Store the parsed CSV data
 let parsedAssessments: Assessment[] = [];
@@ -61,27 +23,35 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
         return response.text();
       })
       .then(csvText => {
-        console.log('CSV data fetched, parsing...');
-        const results = parseCSV(csvText);
-        console.log(`Parsed ${results.length} rows from CSV`);
+        console.log('CSV data fetched, parsing with PapaParse...');
+        
+        // Parse CSV using PapaParse
+        const results = Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          transformHeader: (header) => header.trim()
+        });
+        
+        console.log(`Parsed ${results.data.length} rows from CSV`);
         
         // Debug the first few rows to see what we're getting
-        if (results.length > 0) {
-          console.log('First row sample:', results[0]);
+        if (results.data.length > 0) {
+          console.log('CSV Headers:', results.meta.fields);
+          console.log('First row sample:', results.data[0]);
         }
         
-        const assessmentData = results
-          .filter(row => row['Test Title'] && row.Link) // Use correct field names
-          .map((row, index) => ({
+        const assessmentData = results.data
+          .filter((row: any) => row['Test Title'] && row['Link'])
+          .map((row: any, index: number) => ({
             id: String(index),
             title: row['Test Title'] || 'Untitled Assessment',
-            url: row.Link ? `https://www.shl.com${row.Link}` : '#',
+            url: row['Link'] ? `https://www.shl.com${row['Link']}` : '#',
             remote_support: row['Remote Testing'] === 'Yes',
             adaptive_support: row['Adaptive/IRT'] === 'Yes',
             test_type: row['Test Type'] ? [row['Test Type']] : ['Technical Assessment'],
-            description: row.Description || 'No description available',
+            description: row['Description'] || 'No description available',
             job_levels: row['Job Levels'] ? row['Job Levels'].split(',').map((j: string) => j.trim()) : ['All Levels'],
-            languages: row.Languages ? row.Languages.split(',').map((l: string) => l.trim()) : ['English'],
+            languages: row['Languages'] ? row['Languages'].split(',').map((l: string) => l.trim()) : ['English'],
             assessment_length: parseInt(row['Assessment Length']) || 45,
             downloads: Math.floor(Math.random() * 5000) + 100 // Random download count since it's not in CSV
           }));
@@ -91,7 +61,7 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
         resolve(assessmentData);
       })
       .catch(error => {
-        console.error('Error loading CSV file:', error);
+        console.error('Error loading or parsing CSV file:', error);
         reject(error);
       });
   });

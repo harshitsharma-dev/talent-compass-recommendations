@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -11,68 +11,35 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAssessmentSearch } from '@/hooks/useAssessmentSearch';
 import SearchSummary from '@/components/search/SearchSummary';
 import SearchResults from '@/components/search/SearchResults';
-import { Assessment } from '@/lib/mockData';
+import { toast } from 'sonner';
 
 const ResultsPage = () => {
   const navigate = useNavigate();
-  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   
   // Initialize search state and handlers
   const {
     query,
     setQuery,
     results,
-    setResults,
     loading,
-    setLoading,
     showNoResults,
     filters,
     updateFilters,
-    performSearch
+    performSearch,
+    loadInitialData
   } = useAssessmentSearch('');
 
-  // Fetch query and results from session storage
+  // Load data from session storage and perform search
   useEffect(() => {
-    console.log('ResultsPage: Checking for stored search data');
-    
-    // Set loading state while we check session storage
-    setLoading(true);
-    
-    try {
-      const storedQuery = sessionStorage.getItem('assessment-query') || '';
-      const storedResultsJSON = sessionStorage.getItem('assessment-results');
-      
-      console.log(`Retrieved from storage - Query: "${storedQuery}", Results: ${storedResultsJSON ? 'present' : 'missing'}`);
-      
-      if (!storedResultsJSON) {
-        console.log('No results found in session storage, redirecting to search page');
-        navigate('/recommend');
-        return;
-      }
-      
-      // Parse stored results
-      const storedResults = JSON.parse(storedResultsJSON) as Assessment[];
-      console.log(`Loaded ${storedResults.length} results from session storage`);
-      
-      // Update state with stored values
-      setQuery(storedQuery);
-      setResults(storedResults);
-      setInitialDataLoaded(true);
-    } catch (error) {
-      console.error('Error loading data from session storage:', error);
+    console.log('ResultsPage: Loading initial data');
+    loadInitialData().then(() => {
+      console.log('Initial data loaded:', results.length, 'results');
+    }).catch((error) => {
+      console.error('Failed to load initial data:', error);
+      toast.error('Failed to load assessment data');
       navigate('/recommend');
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate, setQuery, setResults, setLoading]);
-
-  // Re-run search when filters change (but only after initial load)
-  useEffect(() => {
-    if (initialDataLoaded && query && !loading) {
-      console.log('Filters changed, re-running search');
-      performSearch(query);
-    }
-  }, [filters, query, initialDataLoaded, loading, performSearch]);
+    });
+  }, [loadInitialData, navigate]);
 
   return (
     <div className="flex flex-col min-h-screen">
