@@ -1,0 +1,44 @@
+
+// Comprehensive text preprocessing for semantic search
+export const preprocessText = (text: string): string => {
+  // Normalize text: lowercase, remove extra spaces, replace punctuation with spaces
+  let processedText = text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  // Comprehensive synonym mapping for better semantic understanding
+  const synonymMap: {[key: string]: string} = {
+    // Programming languages and technologies
+    'js': 'javascript',
+    'javascript': 'javascript programming coding web development frontend',
+    'ts': 'typescript',
+    'typescript': 'typescript programming coding microsoft',
+    'py': 'python',
+    'python': 'python programming coding data science machine learning',
+    'sql': 'sql database query data analysis relational database',
+    'java': 'java programming coding backend enterprise',
+    'react': 'react javascript frontend web development user interface',
+    'angular': 'angular typescript frontend web development google',
+    'vue': 'vue javascript frontend web development',
+    'node': 'node.js javascript backend server',
+    'nodejs': 'node.js javascript backend server',
+    
+    // Job roles and test types
+    'dev': 'developer software engineer programmer coder',
+    'developer': 'developer software engineer programmer coder',
+    'cognitive': 'cognitive assessment logical thinking problem-solving intelligence',
+    'personality': 'personality test behavior characteristics traits temperament',
+    'soft skills': 'behavioral assessment communication teamwork interpersonal',
+    'analytical': 'analytical data-driven logical methodical'
+  };
+  
+  // Replace all instances of synonyms with expanded forms
+  Object.entries(synonymMap).forEach(([abbr, expansion]) => {
+    const regex = new RegExp(`\\b${abbr.replace(/\+/g, '\\+')}\\b`, 'gi');
+    processedText = processedText.replace(regex, expansion);
+  });
+  
+  return processedText;
+};

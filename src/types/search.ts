@@ -1,4 +1,6 @@
 
+import { Assessment } from '@/lib/mockData';
+
 export interface SearchFilters {
   remote: boolean;
   adaptive: boolean;
