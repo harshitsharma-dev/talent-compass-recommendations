@@ -1,4 +1,3 @@
-
 import { Assessment } from '@/lib/mockData';
 import { SearchFilters } from '@/types/search';
 
@@ -14,6 +13,19 @@ const testTypeMap = {
 
 export const strictFilter = (assessments: Assessment[], filters: Partial<SearchFilters>): Assessment[] => {
   console.log(`Filtering ${assessments.length} assessments with filters:`, filters);
+  
+  // If no filters are active, return all assessments
+  const hasActiveFilters = 
+    filters.remote === true || 
+    filters.adaptive === true || 
+    (filters.maxDuration && filters.maxDuration < 180) ||
+    (filters.testTypes && filters.testTypes.length > 0) ||
+    (filters.requiredSkills && filters.requiredSkills.length > 0);
+
+  if (!hasActiveFilters) {
+    console.log('No active filters, returning all assessments');
+    return assessments;
+  }
   
   const filtered = assessments.filter(assessment => {
     // Debug individual assessment
