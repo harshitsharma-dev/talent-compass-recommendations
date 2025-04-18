@@ -10,7 +10,6 @@ export interface Assessment {
   job_levels: string[];
   languages: string[];
   assessment_length: number;
-  duration?: number; // Added optional duration property
   downloads: number;
 }
 

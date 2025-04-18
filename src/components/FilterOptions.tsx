@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import TestTypeFilter from './filters/TestTypeFilter';
 import DurationFilter from './filters/DurationFilter';
 import SupportFilter from './filters/SupportFilter';
@@ -36,30 +36,11 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
     "Domain Knowledge"
   ];
 
-  // Debug props on mount and changes
-  useEffect(() => {
-    console.log('FilterOptions rendered with:', { remote, adaptive, maxDuration, testTypes });
-  }, [remote, adaptive, maxDuration, testTypes]);
-
-  // Debugging when component mounts and unmounts to help diagnose visibility issues
-  useEffect(() => {
-    console.log('FilterOptions component mounted');
-    
-    return () => {
-      console.log('FilterOptions component unmounted');
-    };
-  }, []);
-
   const handleTestTypeChange = (type: string) => {
-    console.log(`Test type ${type} clicked. Current selection:`, testTypes);
     if (testTypes.includes(type)) {
-      const newTypes = testTypes.filter(t => t !== type);
-      console.log(`Removing ${type}, new selection:`, newTypes);
-      setTestTypes(newTypes);
+      setTestTypes(testTypes.filter(t => t !== type));
     } else {
-      const newTypes = [...testTypes, type];
-      console.log(`Adding ${type}, new selection:`, newTypes);
-      setTestTypes(newTypes);
+      setTestTypes([...testTypes, type]);
     }
   };
 
@@ -71,23 +52,14 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
 
       <SupportFilter
         remote={remote}
-        onRemoteChange={(value) => {
-          console.log(`Remote changed to: ${value}`);
-          setRemote(value);
-        }}
+        onRemoteChange={setRemote}
         adaptive={adaptive}
-        onAdaptiveChange={(value) => {
-          console.log(`Adaptive changed to: ${value}`);
-          setAdaptive(value);
-        }}
+        onAdaptiveChange={setAdaptive}
       />
 
       <DurationFilter
         maxDuration={maxDuration}
-        onDurationChange={(value) => {
-          console.log(`Duration changed to: ${value}`);
-          setMaxDuration(value);
-        }}
+        onDurationChange={setMaxDuration}
       />
 
       <TestTypeFilter

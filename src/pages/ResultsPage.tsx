@@ -55,7 +55,6 @@ const ResultsPage = () => {
   }, [loadInitialData, navigate, setQuery, performSearch, results.length]);
 
   const handleFilterChange = (newFilters) => {
-    console.log('Filter changed:', newFilters);
     updateFilters(newFilters);
     
     // Re-run the search with updated filters if we have a query

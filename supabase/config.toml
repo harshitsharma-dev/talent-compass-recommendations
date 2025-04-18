@@ -62,10 +62,3 @@ enable_confirmations = false
 [functions]
 # Port to serve Edge Functions on your local machine.
 port = 54321
-
-# Set functions to not require authentication
-[functions.health]
-verify_jwt = false
-
-[functions.recommend]
-verify_jwt = false
