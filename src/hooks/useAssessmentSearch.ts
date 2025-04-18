@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Assessment } from '@/lib/mockData';
 import { performVectorSearch } from '@/lib/search/vectorSearch';
@@ -85,6 +86,43 @@ export const useAssessmentSearch = (initialQuery: string) => {
     }
   }, [filters]);
 
+  // Add the missing loadInitialData function
+  const loadInitialData = useCallback(async (): Promise<void> => {
+    setLoading(true);
+    setShowNoResults(false);
+    
+    try {
+      // First check if we have results in session storage
+      const storedResults = sessionStorage.getItem('assessment-results');
+      let assessmentResults: Assessment[] = [];
+      
+      if (storedResults) {
+        console.log('Loading results from session storage');
+        assessmentResults = JSON.parse(storedResults);
+      } else {
+        console.log('No stored results found, loading all assessments');
+        // If no results in session storage, load all assessments
+        assessmentResults = await loadAssessmentData();
+      }
+      
+      // Store the results
+      setResults(assessmentResults);
+      
+      if (assessmentResults.length === 0) {
+        setShowNoResults(true);
+      }
+      
+      console.log(`Loaded ${assessmentResults.length} assessments`);
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+      toast.error('Failed to load assessment data');
+      return Promise.reject(error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const updateFilters = useCallback((newFilters: Partial<SearchFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   }, []);
@@ -100,5 +138,6 @@ export const useAssessmentSearch = (initialQuery: string) => {
     filters,
     updateFilters,
     performSearch,
+    loadInitialData,  // Add the function to the returned object
   };
 };

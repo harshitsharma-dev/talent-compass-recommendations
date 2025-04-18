@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 const ResultsPage = () => {
   const navigate = useNavigate();
   
-  // Initialize search state and handlers
+  // Initialize search state and handlers with loadInitialData
   const {
     query,
     setQuery,
@@ -32,6 +32,13 @@ const ResultsPage = () => {
   // Load data from session storage and perform search
   useEffect(() => {
     console.log('ResultsPage: Loading initial data');
+    
+    const storedQuery = sessionStorage.getItem('assessment-query');
+    if (storedQuery) {
+      console.log('Found stored query:', storedQuery);
+      setQuery(storedQuery);
+    }
+    
     loadInitialData().then(() => {
       console.log('Initial data loaded:', results.length, 'results');
     }).catch((error) => {
@@ -39,7 +46,7 @@ const ResultsPage = () => {
       toast.error('Failed to load assessment data');
       navigate('/recommend');
     });
-  }, [loadInitialData, navigate]);
+  }, [loadInitialData, navigate, setQuery, results.length]);
 
   return (
     <div className="flex flex-col min-h-screen">
