@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -46,7 +45,7 @@ const ResultsPage = () => {
       toast.error('Failed to load assessment data');
       navigate('/recommend');
     });
-  }, [loadInitialData, navigate, setQuery, results.length]);
+  }, [loadInitialData, navigate, setQuery]);
 
   return (
     <div className="flex flex-col min-h-screen">
