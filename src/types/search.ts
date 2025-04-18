@@ -1,4 +1,3 @@
-
 import { Assessment } from '@/lib/mockData';
 
 export interface SearchFilters {

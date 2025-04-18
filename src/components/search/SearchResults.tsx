@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { Loader2, Search, AlertCircle, Info } from 'lucide-react';
+import { Loader2, Search, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Assessment } from '@/lib/mockData';
 import AssessmentCard from '@/components/AssessmentCard';
 import { useNavigate } from 'react-router-dom';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SearchResultsProps {
   loading: boolean;
@@ -47,7 +47,7 @@ const SearchResults = ({ loading, showNoResults, results }: SearchResultsProps) 
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertDescription>
-            No matching assessments found. Try adjusting your search criteria or filters.
+            No matching assessments found. Try adjusting your search criteria.
           </AlertDescription>
         </Alert>
         
@@ -55,14 +55,8 @@ const SearchResults = ({ loading, showNoResults, results }: SearchResultsProps) 
           <Search className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No matching assessments found</h3>
           <p className="text-muted-foreground mb-6 max-w-md">
-            Try broadening your search criteria by:
+            Try broadening your search criteria or using different keywords.
           </p>
-          <ul className="text-left text-muted-foreground mb-6 space-y-2">
-            <li>• Using fewer filters</li>
-            <li>• Trying more general search terms</li>
-            <li>• Checking for typos in your search query</li>
-            <li>• Increasing the maximum duration value</li>
-          </ul>
           <div className="flex flex-wrap gap-4 justify-center">
             <Button onClick={() => navigate('/recommend')} className="mt-4">
               Try a Different Search
@@ -72,7 +66,7 @@ const SearchResults = ({ loading, showNoResults, results }: SearchResultsProps) 
               onClick={() => window.location.reload()} 
               className="mt-4"
             >
-              Reset Filters
+              Reset Results
             </Button>
           </div>
         </div>
