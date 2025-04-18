@@ -22,7 +22,7 @@ const UrlContentInput: React.FC<UrlContentInputProps> = ({ onContentExtracted })
 
     try {
       setIsProcessingUrl(true);
-      toast.loading('Fetching content from URL...', { id: 'url-fetching' });
+      toast.loading('Attempting to fetch content from URL...', { id: 'url-fetching' });
       
       const content = await extractContentFromUrl(url);
       toast.dismiss('url-fetching');
@@ -38,7 +38,7 @@ const UrlContentInput: React.FC<UrlContentInputProps> = ({ onContentExtracted })
     } catch (error) {
       console.error('Error processing URL:', error);
       toast.dismiss('url-fetching');
-      toast.error('Failed to process URL');
+      toast.error('Could not access this URL. Try a different URL or copy the content manually.');
     } finally {
       setIsProcessingUrl(false);
     }
