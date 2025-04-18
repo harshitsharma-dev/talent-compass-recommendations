@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -22,19 +23,29 @@ const RecommendPage = () => {
     const initializeData = async () => {
       setIsModelLoading(true);
       try {
+        console.log('Starting data initialization...');
         toast.loading('Loading assessment data and preparing search engine...');
         
-        await Promise.all([
+        const startTime = Date.now();
+        
+        const [assessments, embeddings] = await Promise.all([
           loadAssessmentData(),
           initializeEmbeddings()
         ]);
         
+        const endTime = Date.now();
+        console.log(`Data initialization completed in ${endTime - startTime}ms`);
+        console.log(`Loaded ${assessments.length} assessments`);
+        console.log(`Loaded ${Object.keys(embeddings).length} embeddings`);
+        
         toast.dismiss();
         toast.success('Search engine ready');
       } catch (error) {
-        console.error('Failed to initialize search engine:', error);
+        console.error('Detailed initialization error:', error);
+        toast.dismiss();
         toast.error('Failed to initialize search engine. Some features may be limited.');
       } finally {
+        console.log('Setting isModelLoading to false');
         setIsModelLoading(false);
       }
     };
@@ -195,3 +206,4 @@ const RecommendPage = () => {
 };
 
 export default RecommendPage;
+
