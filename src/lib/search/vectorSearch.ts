@@ -1,4 +1,3 @@
-
 import { Assessment } from '@/lib/mockData';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 import { getEmbeddings } from '@/lib/embedding/embeddingModel';
@@ -15,13 +14,38 @@ interface SearchParams {
 // Cache for assessment embeddings
 let assessmentEmbeddings: { [key: string]: number[] } = {};
 
-// Enhanced text preprocessing
+// Enhanced text preprocessing with job role and skill mapping
 const preprocessText = (text: string): string => {
-  return text
+  let processedText = text
     .toLowerCase()
     .replace(/[^\w\s]/g, ' ')  // Replace punctuation with spaces
     .replace(/\s+/g, ' ')      // Remove extra spaces
     .trim();
+  
+  // Expand common abbreviations and synonyms
+  const synonymMap: {[key: string]: string} = {
+    'js': 'javascript',
+    'ts': 'typescript',
+    'py': 'python',
+    'collab': 'collaboration',
+    'collaborative': 'collaboration',
+    'dev': 'developer',
+    'sr': 'senior',
+    'jr': 'junior',
+    'mid-level': 'midlevel',
+    'mid level': 'midlevel',
+    'cognitive': 'cognitive assessment',
+    'personality': 'personality test',
+    'soft skills': 'behavioral assessment communication teamwork',
+    'analyst': 'analytics data analysis',
+  };
+  
+  Object.entries(synonymMap).forEach(([abbr, expansion]) => {
+    const regex = new RegExp(`\\b${abbr}\\b`, 'gi');
+    processedText = processedText.replace(regex, expansion);
+  });
+  
+  return processedText;
 };
 
 // Fallback keyword-based search without embeddings
@@ -29,9 +53,9 @@ const performKeywordSearch = (assessments: Assessment[], query: string): Assessm
   const keywords = query.toLowerCase().split(/\s+/).filter(k => k.length > 2);
   
   return assessments.map(assessment => {
-    const searchableText = `${assessment.title} ${assessment.description} ${assessment.test_type.join(' ')}`.toLowerCase();
+    const searchableText = `${assessment.title} ${assessment.description} ${assessment.test_type.join(' ')} ${assessment.job_levels.join(' ')}`.toLowerCase();
     
-    // Calculate a simple relevance score based on keyword matches
+    // Calculate a more sophisticated relevance score based on keyword matches
     let score = 0;
     keywords.forEach(keyword => {
       if (searchableText.includes(keyword)) {
@@ -40,8 +64,29 @@ const performKeywordSearch = (assessments: Assessment[], query: string): Assessm
         if (assessment.title.toLowerCase().includes(keyword)) {
           score += 2;
         }
+        // Boost score for job level matches
+        if (assessment.job_levels.some(level => level.toLowerCase().includes(keyword))) {
+          score += 1.5;
+        }
+        // Boost score for test type matches
+        if (assessment.test_type.some(type => type.toLowerCase().includes(keyword))) {
+          score += 1.5;
+        }
       }
     });
+    
+    // Duration-based score adjustment
+    if (query.includes('minutes') || query.includes('min')) {
+      const durationMatches = query.match(/(\d+)\s*minutes|(\d+)\s*min/);
+      if (durationMatches) {
+        const requestedDuration = parseInt(durationMatches[1] || durationMatches[2]);
+        // Favor assessments that are close to but under the requested duration
+        if (assessment.assessment_length <= requestedDuration) {
+          const durationCloseness = 1 - Math.abs(assessment.assessment_length - requestedDuration) / requestedDuration;
+          score += durationCloseness * 2;
+        }
+      }
+    }
     
     return { assessment, score };
   })
@@ -73,7 +118,9 @@ const getAssessmentEmbeddings = async (assessments: Assessment[]): Promise<{ [ke
 
   try {
     console.log('Generating embeddings for assessments...');
-    const texts = assessments.map(a => `${a.title} ${a.description}`);
+    const texts = assessments.map(a => 
+      `${a.title} ${a.description} Test types: ${a.test_type.join(', ')} Job levels: ${a.job_levels.join(', ')} Duration: ${a.assessment_length} minutes`
+    );
     const embeddings = await getEmbeddings(texts);
     
     assessmentEmbeddings = assessments.reduce((acc, assessment, index) => {
@@ -89,12 +136,66 @@ const getAssessmentEmbeddings = async (assessments: Assessment[]): Promise<{ [ke
   }
 };
 
-// Filter assessments based on search parameters
+// Enhanced filter - recognizes duration mentions in natural language
+const extractDurationFromQuery = (query: string): number | undefined => {
+  const durationMatches = query.match(/(\d+)\s*minutes|(\d+)\s*min/i);
+  if (durationMatches) {
+    return parseInt(durationMatches[1] || durationMatches[2]);
+  }
+  return undefined;
+};
+
+// Enhanced filter - extracts test types from query
+const extractTestTypesFromQuery = (query: string): string[] => {
+  const testTypes = [];
+  const lowerQuery = query.toLowerCase();
+  
+  // Map of common test type mentions to official test types
+  const testTypeMap: {[key: string]: string} = {
+    'coding': 'Coding Challenge',
+    'technical': 'Technical Assessment',
+    'cognitive': 'Cognitive Assessment',
+    'personality': 'Personality Test',
+    'behavioral': 'Behavioral Assessment',
+    'skill': 'Skills Assessment',
+    'problem solving': 'Problem Solving',
+    'domain': 'Domain Knowledge'
+  };
+  
+  Object.entries(testTypeMap).forEach(([mention, testType]) => {
+    if (lowerQuery.includes(mention)) {
+      testTypes.push(testType);
+    }
+  });
+  
+  return testTypes;
+};
+
+// Filter assessments based on search parameters with smarter extraction
 const filterAssessments = (
   assessments: Assessment[],
-  { remote, adaptive, maxDuration, testTypes }: Partial<SearchParams>
+  { query, remote, adaptive, maxDuration, testTypes }: Partial<SearchParams>
 ): Assessment[] => {
-  return assessments.filter(assessment => {
+  let filteredAssessments = [...assessments];
+  
+  // If maxDuration not explicitly provided but mentioned in query, extract it
+  if (!maxDuration && query) {
+    const extractedDuration = extractDurationFromQuery(query);
+    if (extractedDuration) {
+      maxDuration = extractedDuration;
+    }
+  }
+  
+  // If testTypes not explicitly provided but mentioned in query, extract them
+  if ((!testTypes || testTypes.length === 0) && query) {
+    const extractedTestTypes = extractTestTypesFromQuery(query);
+    if (extractedTestTypes.length > 0) {
+      testTypes = extractedTestTypes;
+    }
+  }
+  
+  // Apply filters
+  return filteredAssessments.filter(assessment => {
     if (remote !== undefined && assessment.remote_support !== remote) return false;
     if (adaptive !== undefined && assessment.adaptive_support !== adaptive) return false;
     if (maxDuration && assessment.assessment_length > maxDuration) return false;
@@ -103,13 +204,13 @@ const filterAssessments = (
   });
 };
 
-// Perform vector search with filtering
+// Perform vector search with filtering and better context understanding
 export const performVectorSearch = async (params: SearchParams): Promise<Assessment[]> => {
   const { query, ...filters } = params;
   
   try {
     const allAssessments = await loadAssessmentData();
-    const filteredAssessments = filterAssessments(allAssessments, filters);
+    let filteredAssessments = filterAssessments(allAssessments, params);
     
     if (filteredAssessments.length === 0) {
       return [];
@@ -117,15 +218,20 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
 
     if (query.trim()) {
       try {
-        // Preprocess query
+        // Preprocess query with enhanced context understanding
         const processedQuery = preprocessText(query);
+        console.log('Processed query:', processedQuery);
         
         // Get embeddings
         const queryEmbedding = await getQueryEmbedding(processedQuery);
         const assessmentEmbeddings = await getAssessmentEmbeddings(filteredAssessments);
 
-        // Calculate similarities with threshold
-        const similarityThreshold = 0.6; // Adjust this threshold as needed
+        // Calculate similarities with dynamic threshold based on query complexity
+        const queryComplexity = processedQuery.split(' ').length;
+        // More complex queries can have lower thresholds since exact matches are less likely
+        const similarityThreshold = Math.max(0.5, 0.7 - queryComplexity * 0.01);
+        console.log(`Using similarity threshold: ${similarityThreshold} for query complexity: ${queryComplexity}`);
+        
         const results = filteredAssessments
           .map(assessment => ({
             assessment,
