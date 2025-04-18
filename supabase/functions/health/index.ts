@@ -7,32 +7,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
-  if (req.method !== 'GET') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 405 
-      }
-    )
-  }
-
   try {
     console.log("Health check endpoint called")
     
-    const healthStatus = {
-      service_name: "talent-compass-recommendations",
+    const response = {
       status: "healthy",
-      api_version: "1.0",
-      timestamp: new Date().toISOString(),
-      endpoints: {
-        health: "/health",
-        recommend: "/recommend"
-      }
+      timestamp: new Date().toISOString()
     }
 
     return new Response(
-      JSON.stringify(healthStatus),
+      JSON.stringify(response),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
@@ -42,11 +26,7 @@ Deno.serve(async (req) => {
     console.error("Health check error:", error)
     
     return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        status: "error",
-        service_name: "talent-compass-recommendations"
-      }),
+      JSON.stringify({ error: error.message }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
