@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import TestTypeFilter from './filters/TestTypeFilter';
 import DurationFilter from './filters/DurationFilter';
 import SupportFilter from './filters/SupportFilter';
@@ -35,6 +35,11 @@ const FilterOptions: React.FC<FilterOptionsProps> = ({
     "Problem Solving",
     "Domain Knowledge"
   ];
+
+  // Debug props on mount and changes
+  useEffect(() => {
+    console.log('FilterOptions rendered with:', { remote, adaptive, maxDuration, testTypes });
+  }, [remote, adaptive, maxDuration, testTypes]);
 
   const handleTestTypeChange = (type: string) => {
     if (testTypes.includes(type)) {

@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+
+import { useState, useCallback, useEffect } from 'react';
 import { Assessment } from '@/lib/mockData';
 import { performVectorSearch } from '@/lib/search/vectorSearch';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
@@ -19,6 +20,11 @@ export const useAssessmentSearch = (initialQuery: string) => {
     testTypes: [],
     requiredSkills: [],
   });
+
+  // Debug filter state on any change
+  useEffect(() => {
+    console.log('Current filters:', filters);
+  }, [filters]);
 
   // Complete search pipeline implementation
   const performSearch = useCallback(async (searchQuery: string) => {
@@ -41,14 +47,23 @@ export const useAssessmentSearch = (initialQuery: string) => {
         requiredSkills: extractedParams.requiredSkills || [],
       };
       
+      console.log('Applied search filters:', searchFilters);
+      
       try {
         const rankedResults = await performVectorSearch({
           query: searchQuery,
           ...searchFilters
         });
         
+        console.log(`Search returned ${rankedResults.length} results`);
         setResults(rankedResults);
-        sessionStorage.setItem('assessment-results', JSON.stringify(rankedResults));
+        
+        // Store results in session storage for persistence
+        try {
+          sessionStorage.setItem('assessment-results', JSON.stringify(rankedResults));
+        } catch (storageError) {
+          console.warn('Failed to store results in session storage:', storageError);
+        }
         
         if (rankedResults.length === 0) {
           setShowNoResults(true);
@@ -92,6 +107,7 @@ export const useAssessmentSearch = (initialQuery: string) => {
         console.log('Loading results from session storage');
         try {
           assessmentResults = JSON.parse(storedResults);
+          console.log(`Loaded ${assessmentResults.length} results from session storage`);
         } catch (error) {
           console.error('Error parsing stored results:', error);
           assessmentResults = await loadAssessmentData();
@@ -119,6 +135,7 @@ export const useAssessmentSearch = (initialQuery: string) => {
   }, []);
 
   const updateFilters = useCallback((newFilters: Partial<SearchFilters>) => {
+    console.log('Updating filters:', newFilters);
     setFilters(prev => ({ ...prev, ...newFilters }));
   }, []);
 
