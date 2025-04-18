@@ -5,14 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, Globe, BarChart3, ExternalLink, Download, Layers } from 'lucide-react';
 import { Assessment } from '@/lib/mockData';
+import { cn } from '@/lib/utils';
 
 interface AssessmentCardProps {
   assessment: Assessment;
+  className?: string;
 }
 
-const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
+const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment, className }) => {
   return (
-    <Card className="overflow-hidden h-full flex flex-col animate-fade-in-up">
+    <Card className={cn("overflow-hidden h-full flex flex-col animate-fade-in-up", className)}>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start gap-2">
           <CardTitle className="text-xl">{assessment.title}</CardTitle>
