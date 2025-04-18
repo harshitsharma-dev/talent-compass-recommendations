@@ -18,7 +18,7 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
           <CardTitle className="text-xl">{assessment.title}</CardTitle>
         </div>
         <div className="flex flex-wrap gap-2 mt-2">
-          {assessment.test_type.map((type, index) => (
+          {assessment.test_type && assessment.test_type.map((type, index) => (
             <Badge key={index} variant="secondary" className="font-normal">
               {type}
             </Badge>
@@ -33,7 +33,7 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
         <div className="grid grid-cols-2 gap-y-3 text-sm">
           <div className="flex items-center gap-1.5">
             <Clock size={16} className="text-muted-foreground" />
-            <span>{assessment.assessment_length} minutes</span>
+            <span>{assessment.assessment_length || assessment.duration || 45} minutes</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Globe size={16} className="text-muted-foreground" />
@@ -45,11 +45,13 @@ const AssessmentCard: React.FC<AssessmentCardProps> = ({ assessment }) => {
           </div>
           <div className="flex items-center gap-1.5">
             <Layers size={16} className="text-muted-foreground" />
-            <span>{assessment.job_levels.join(', ')}</span>
+            <span>{assessment.job_levels && Array.isArray(assessment.job_levels) 
+              ? assessment.job_levels.join(', ') 
+              : 'All Levels'}</span>
           </div>
           <div className="col-span-2 flex items-center gap-1.5">
             <Download size={16} className="text-muted-foreground" />
-            <span>{assessment.downloads.toLocaleString()} downloads</span>
+            <span>{assessment.downloads ? assessment.downloads.toLocaleString() : '0'} downloads</span>
           </div>
         </div>
       </CardContent>
