@@ -1,5 +1,5 @@
-
 import { Assessment } from './mockData';
+import { pipeline, env } from '@huggingface/transformers';
 
 interface SearchParams {
   query: string;
@@ -9,8 +9,21 @@ interface SearchParams {
   testTypes?: string[];
 }
 
+// Configure transformers.js to use CDN for models
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+
+// The embedding model to use
+const MODEL_NAME = "mixedbread-ai/mxbai-embed-xsmall-v1";
+
 // Store the parsed CSV data
 let parsedAssessments: Assessment[] = [];
+// Store the computed embeddings
+let assessmentEmbeddings: { id: string; embedding: number[] }[] = [];
+// Flag to track if embeddings have been computed
+let embeddingsComputed = false;
+// Reference to the embedding pipeline
+let embeddingPipeline: any = null;
 
 // Simple CSV parser function
 const parseCSV = (text: string): any[] => {
@@ -29,7 +42,7 @@ const parseCSV = (text: string): any[] => {
 };
 
 // Function to load and parse the CSV file
-export const loadAssessmentData = (): Promise<Assessment[]> => {
+export const loadAssessmentData = async (): Promise<Assessment[]> => {
   return new Promise((resolve, reject) => {
     // Check if we already loaded the data
     if (parsedAssessments.length > 0) {
@@ -81,43 +94,115 @@ export const loadAssessmentData = (): Promise<Assessment[]> => {
   });
 };
 
+// Initialize the embedding model
+const initializeEmbeddingModel = async () => {
+  if (embeddingPipeline) return embeddingPipeline;
+  
+  try {
+    console.log('Initializing embedding model...');
+    embeddingPipeline = await pipeline(
+      'feature-extraction',
+      MODEL_NAME,
+      { quantized: true }
+    );
+    console.log('Embedding model initialized');
+    return embeddingPipeline;
+  } catch (error) {
+    console.error('Error initializing embedding model:', error);
+    throw error;
+  }
+};
+
+// Calculate embeddings for all assessments
+const calculateAssessmentEmbeddings = async (assessments: Assessment[]) => {
+  if (embeddingsComputed && assessmentEmbeddings.length > 0) {
+    console.log('Using cached embeddings');
+    return;
+  }
+
+  try {
+    console.log('Calculating embeddings for assessments...');
+    const embedder = await initializeEmbeddingModel();
+    
+    // Calculate embeddings in batches to avoid memory issues
+    const batchSize = 10;
+    assessmentEmbeddings = [];
+    
+    for (let i = 0; i < assessments.length; i += batchSize) {
+      const batch = assessments.slice(i, i + batchSize);
+      const texts = batch.map(a => `${a.title} ${a.description}`);
+      
+      console.log(`Computing embeddings for batch ${i / batchSize + 1}/${Math.ceil(assessments.length / batchSize)}`);
+      const embeddings = await embedder(texts, { pooling: "mean", normalize: true });
+      
+      // Store embeddings with their corresponding assessment ids
+      batch.forEach((assessment, index) => {
+        assessmentEmbeddings.push({
+          id: assessment.id,
+          embedding: Array.from(embeddings.data[index])
+        });
+      });
+    }
+    
+    embeddingsComputed = true;
+    console.log(`Calculated embeddings for ${assessmentEmbeddings.length} assessments`);
+  } catch (error) {
+    console.error('Error calculating assessment embeddings:', error);
+    throw error;
+  }
+};
+
+// Calculate cosine similarity between two vectors
+const cosineSimilarity = (vecA: number[], vecB: number[]): number => {
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+};
+
 export const performVectorSearch = async (params: SearchParams): Promise<Assessment[]> => {
   try {
-    console.log('Performing search with params:', params);
+    console.log('Performing vector search with params:', params);
     
-    // Load the CSV data if not already loaded
+    // Load the assessment data if not already loaded
     const assessments = await loadAssessmentData();
     console.log(`Loaded ${assessments.length} assessments for search`);
     
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Initialize the embedding model and calculate embeddings if not already done
+    await initializeEmbeddingModel();
+    await calculateAssessmentEmbeddings(assessments);
     
-    // This is a very simplified simulation of semantic search
-    // In reality, we would use vector similarity
-    const normalizedQuery = params.query.toLowerCase();
-    console.log(`Normalized query: "${normalizedQuery}"`);
+    // Generate embedding for the query
+    const embedder = embeddingPipeline;
+    console.log(`Generating embedding for query: "${params.query}"`);
+    const queryEmbedding = await embedder(params.query, { pooling: "mean", normalize: true });
+    const queryVector = Array.from(queryEmbedding.data[0]);
     
+    // Calculate similarity between query and all assessments
+    console.log('Calculating similarity scores...');
     const scoredAssessments = assessments.map(assessment => {
-      // Calculate a simple relevance score based on text matching
-      // (In a real app, this would be cosine similarity between vectors)
-      const titleMatch = assessment.title.toLowerCase().includes(normalizedQuery) ? 5 : 0;
-      const descMatch = assessment.description.toLowerCase().includes(normalizedQuery) ? 3 : 0;
-      const typeMatch = assessment.test_type.some(type => 
-        normalizedQuery.includes(type.toLowerCase())) ? 2 : 0;
+      // Find the corresponding embedding for this assessment
+      const assessmentEmbed = assessmentEmbeddings.find(embed => embed.id === assessment.id);
       
-      // Basic keyword matching for job roles
-      const roleMatches = [
-        'developer', 'engineer', 'designer', 'manager', 'analyst', 'executive', 
-        'java', 'frontend', 'devops', 'product', 'data', 'ui', 'ux', 'qa', 
-        'sales', 'security', 'project'
-      ].filter(role => 
-        normalizedQuery.includes(role) && 
-        (assessment.title.toLowerCase().includes(role) || 
-          assessment.description.toLowerCase().includes(role))
-      ).length * 2;
+      // Calculate similarity score using cosine similarity
+      const similarityScore = assessmentEmbed 
+        ? cosineSimilarity(queryVector, assessmentEmbed.embedding)
+        : 0;
       
-      // Calculate total score
-      const score = titleMatch + descMatch + typeMatch + roleMatches;
+      // Add keyword matching as a secondary signal
+      const normalizedQuery = params.query.toLowerCase();
+      const titleMatch = assessment.title.toLowerCase().includes(normalizedQuery) ? 0.1 : 0;
+      const descMatch = assessment.description.toLowerCase().includes(normalizedQuery) ? 0.05 : 0;
+      
+      // Combine vector similarity with keyword matching
+      const score = similarityScore + titleMatch + descMatch;
       
       return { assessment, score };
     });
@@ -149,12 +234,13 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
           }
         }
         
-        return item.score > 0; // Only return items with a positive score
+        // Only keep assessments with a reasonable similarity score
+        return item.score > 0.2;
       })
       .sort((a, b) => b.score - a.score)
       .map(item => item.assessment);
     
-    console.log(`Search returned ${results.length} results`);
+    console.log(`Search returned ${results.length} results after filtering`);
     
     // Return top results (max 20)
     const finalResults = results.slice(0, 20);
@@ -165,8 +251,8 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
       console.log('No results found, returning default example result for debugging');
       const dummyResult: Assessment = {
         id: 'example-1',
-        title: 'Example Assessment (Debug: No matches found)',
-        description: `No results matched your query: "${params.query}". This is a debug result to verify the search function is working.`,
+        title: 'Example Assessment (No matches found)',
+        description: `No results matched your query: "${params.query}". This might be because the embedding model couldn't find semantic matches or the data doesn't contain relevant assessments.`,
         url: '#',
         remote_support: true,
         adaptive_support: false,
@@ -186,7 +272,7 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
     const errorResult: Assessment = {
       id: 'error-1',
       title: 'Search Error Occurred',
-      description: 'An error occurred during the search. Please try again.',
+      description: 'An error occurred during the search. This might be due to issues loading the embedding model or calculating embeddings. Please check the console for more details.',
       url: '#',
       remote_support: true,
       adaptive_support: false,

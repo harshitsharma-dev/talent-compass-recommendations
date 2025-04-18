@@ -8,11 +8,12 @@ interface ExampleCardProps {
   title: string;
   description: string;
   onClick: () => void;
+  disabled?: boolean;
 }
 
-const ExampleCard: React.FC<ExampleCardProps> = ({ title, description, onClick }) => {
+const ExampleCard: React.FC<ExampleCardProps> = ({ title, description, onClick, disabled = false }) => {
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md">
+    <Card className={`overflow-hidden transition-all ${disabled ? 'opacity-70' : 'hover:shadow-md'}`}>
       <CardContent className="p-6">
         <h3 className="text-lg font-semibold mb-2">{title}</h3>
         <p className="text-muted-foreground mb-4 text-sm line-clamp-2">
@@ -22,6 +23,7 @@ const ExampleCard: React.FC<ExampleCardProps> = ({ title, description, onClick }
           variant="outline" 
           onClick={onClick}
           className="w-full justify-between group"
+          disabled={disabled}
         >
           Use this example
           <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />

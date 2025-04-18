@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -12,17 +12,32 @@ import { performVectorSearch, loadAssessmentData } from '@/lib/vectorSearch';
 const RecommendPage = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [isModelLoading, setIsModelLoading] = useState(true);
   
-  // Preload data when the page loads
-  React.useEffect(() => {
-    // Preload the assessment data in the background
-    loadAssessmentData()
-      .then(data => {
-        console.log(`Preloaded ${data.length} assessments`);
-      })
-      .catch(error => {
-        console.error('Failed to preload assessment data:', error);
-      });
+  // Preload data and initialize models when the page loads
+  useEffect(() => {
+    const initializeData = async () => {
+      setIsModelLoading(true);
+      try {
+        toast.loading('Initializing search engine...');
+        
+        // Preload the assessment data in the background
+        await loadAssessmentData();
+        
+        // Perform a dummy search to initialize the embedding model
+        await performVectorSearch({ query: "initialize model" });
+        
+        toast.dismiss();
+        toast.success('Search engine ready');
+      } catch (error) {
+        console.error('Failed to initialize search engine:', error);
+        toast.error('Failed to initialize search engine. Some features may be limited.');
+      } finally {
+        setIsModelLoading(false);
+      }
+    };
+    
+    initializeData();
   }, []);
 
   const handleFormSubmit = async (query: string) => {
@@ -76,9 +91,21 @@ const RecommendPage = () => {
               Enter a job description or hiring requirements, and our AI will recommend the most suitable assessment tools for your needs.
             </p>
             
-            <div className="mb-12">
-              <RecommendationForm onSubmit={handleFormSubmit} isLoading={isLoading} />
-            </div>
+            {isModelLoading ? (
+              <div className="flex flex-col items-center justify-center py-8 mb-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+                <p className="text-muted-foreground">
+                  Initializing AI search engine...
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  This may take a moment on first load.
+                </p>
+              </div>
+            ) : (
+              <div className="mb-12">
+                <RecommendationForm onSubmit={handleFormSubmit} isLoading={isLoading} />
+              </div>
+            )}
             
             <div className="space-y-6">
               <h2 className="text-xl font-semibold">Or try one of these examples:</h2>
@@ -89,6 +116,7 @@ const RecommendPage = () => {
                     title={example.title}
                     description={example.description}
                     onClick={() => handleExampleClick(example)}
+                    disabled={isModelLoading || isLoading}
                   />
                 ))}
               </div>
