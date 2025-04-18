@@ -19,6 +19,22 @@ export interface EmbeddingCache {
   [key: string]: number[];
 }
 
+// Define the raw database response type
+export interface AssessmentRow {
+  "Test Title"?: string;
+  "Assessment Length"?: string;
+  "Test Type"?: string;
+  "Remote Testing"?: string;
+  "Adaptive/IRT"?: string;
+  "Job Levels"?: string;
+  Languages?: string;
+  Link?: string;
+  Description?: string;
+  Downloads?: string;
+  embedding?: any;
+  combined_text?: string;
+}
+
 // Add this declaration to extend the Assessment interface
 declare module '@/lib/mockData' {
   interface Assessment {

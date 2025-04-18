@@ -2,26 +2,42 @@
 import { Assessment } from '@/lib/mockData';
 import { EmbeddingCache } from '@/types/search';
 
-export const parseEmbedding = (embedding: string | number[] | null | unknown): number[] | null => {
+export const parseEmbedding = (embedding: any): number[] | null => {
   if (!embedding) return null;
   
   try {
-    if (Array.isArray(embedding)) {
+    // Case 1: Already a number array
+    if (Array.isArray(embedding) && embedding.length > 0 && typeof embedding[0] === 'number') {
       return embedding;
     }
     
-    if (typeof embedding === 'object') {
-      // Try to extract array from jsonb or other object formats
+    // Case 2: JSONB object from database
+    if (typeof embedding === 'object' && !Array.isArray(embedding)) {
+      // Try to convert object to string and parse
       const embeddingStr = JSON.stringify(embedding);
-      if (embeddingStr) {
-        return JSON.parse(embeddingStr.replace(/'/g, '"'));
+      try {
+        const parsed = JSON.parse(embeddingStr.replace(/'/g, '"'));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(val => Number(val));
+        }
+      } catch (e) {
+        console.warn('Failed to parse embedding object:', e);
       }
     }
     
+    // Case 3: String representation of array
     if (typeof embedding === 'string') {
-      return JSON.parse(embedding.replace(/'/g, '"'));
+      try {
+        const parsed = JSON.parse(embedding.replace(/'/g, '"'));
+        if (Array.isArray(parsed)) {
+          return parsed.map(val => Number(val));
+        }
+      } catch (e) {
+        console.warn('Failed to parse embedding string:', e);
+      }
     }
     
+    console.warn('Unknown embedding format:', typeof embedding);
     return null;
   } catch (err) {
     console.warn('Failed to parse embedding:', err);
