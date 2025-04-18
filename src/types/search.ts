@@ -1,3 +1,4 @@
+
 import { Assessment } from '@/lib/mockData';
 
 export interface SearchFilters {
@@ -22,5 +23,6 @@ export interface EmbeddingCache {
 declare module '@/lib/mockData' {
   interface Assessment {
     embedding?: number[] | null;
+    id: string;
   }
 }

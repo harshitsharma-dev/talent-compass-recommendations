@@ -2,7 +2,7 @@
 import { Assessment } from '@/lib/mockData';
 import { EmbeddingCache } from '@/types/search';
 
-export const parseEmbedding = (embedding: string | number[] | null): number[] | null => {
+export const parseEmbedding = (embedding: string | number[] | null | unknown): number[] | null => {
   if (!embedding) return null;
   
   try {
@@ -10,7 +10,19 @@ export const parseEmbedding = (embedding: string | number[] | null): number[] | 
       return embedding;
     }
     
-    return JSON.parse(String(embedding).replace(/'/g, '"'));
+    if (typeof embedding === 'object') {
+      // Try to extract array from jsonb or other object formats
+      const embeddingStr = JSON.stringify(embedding);
+      if (embeddingStr) {
+        return JSON.parse(embeddingStr.replace(/'/g, '"'));
+      }
+    }
+    
+    if (typeof embedding === 'string') {
+      return JSON.parse(embedding.replace(/'/g, '"'));
+    }
+    
+    return null;
   } catch (err) {
     console.warn('Failed to parse embedding:', err);
     return null;
