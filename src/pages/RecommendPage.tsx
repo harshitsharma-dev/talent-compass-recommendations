@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -78,6 +79,12 @@ const RecommendPage = () => {
       toast.loading('Loading all assessments...');
       
       const allAssessments = await loadAssessmentData();
+      console.log(`Retrieved ${allAssessments.length} assessments for "See All"`);
+      
+      if (allAssessments.length === 0) {
+        toast.error('No assessment data available. Please try again later.');
+        return;
+      }
       
       sessionStorage.setItem('assessment-query', '');
       sessionStorage.setItem('assessment-results', JSON.stringify(allAssessments));
@@ -85,7 +92,10 @@ const RecommendPage = () => {
       toast.dismiss();
       toast.success(`Found ${allAssessments.length} assessments`);
       
-      navigate('/results');
+      // Ensure we have data before navigating
+      if (allAssessments.length > 0) {
+        navigate('/results');
+      }
     } catch (error) {
       console.error('Error loading assessments:', error);
       toast.error('Failed to load assessments. Please try again.');

@@ -9,9 +9,32 @@ const parseCSV = (text: string): any[] => {
   return lines.slice(1)
     .filter(line => line.trim())
     .map(line => {
-      const values = line.split(',').map(v => v.trim());
+      // Handle quoted values with commas properly
+      const values = [];
+      let inQuotes = false;
+      let currentValue = '';
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"' && (i === 0 || line[i-1] !== '\\')) {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(currentValue.trim());
+          currentValue = '';
+        } else {
+          currentValue += char;
+        }
+      }
+      
+      // Add the last value
+      values.push(currentValue.trim());
+      
+      // Create object from headers and values
       return headers.reduce((obj: any, header, index) => {
-        obj[header] = values[index];
+        const value = values[index] || '';
+        // Remove quotes from the beginning and end if they exist
+        obj[header] = value.replace(/^"|"$/g, '');
         return obj;
       }, {});
     });
