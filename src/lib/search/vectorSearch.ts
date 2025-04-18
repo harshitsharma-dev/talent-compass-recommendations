@@ -1,7 +1,7 @@
 
-import { Assessment } from '../mockData';
-import { loadAssessmentData } from '../data/assessmentLoader';
-import { getEmbeddings } from '../embedding/embeddingModel';
+import { Assessment } from '@/lib/mockData';
+import { loadAssessmentData } from '@/lib/data/assessmentLoader';
+import { getEmbeddings } from '@/lib/embedding/embeddingModel';
 import { cosineSimilarity } from './vectorOperations';
 
 interface SearchParams {
@@ -12,151 +12,80 @@ interface SearchParams {
   testTypes?: string[];
 }
 
-// Store the computed embeddings
-let assessmentEmbeddings: { id: string; embedding: number[] }[] = [];
-// Flag to track if embeddings have been computed
-let embeddingsComputed = false;
+// Cache for assessment embeddings
+let assessmentEmbeddings: { [key: string]: number[] } = {};
 
-// Calculate embeddings for all assessments
-const calculateAssessmentEmbeddings = async (assessments: Assessment[]) => {
-  if (embeddingsComputed && assessmentEmbeddings.length > 0) {
-    console.log('Using cached embeddings');
-    return;
-  }
-
-  try {
-    console.log('Calculating embeddings for assessments...');
-    
-    // Calculate embeddings in batches to avoid memory issues
-    const batchSize = 10;
-    assessmentEmbeddings = [];
-    
-    for (let i = 0; i < assessments.length; i += batchSize) {
-      const batch = assessments.slice(i, i + batchSize);
-      const texts = batch.map(a => `${a.title} ${a.description}`);
-      
-      console.log(`Computing embeddings for batch ${i / batchSize + 1}/${Math.ceil(assessments.length / batchSize)}`);
-      const embeddings = await getEmbeddings(texts);
-      
-      // Store embeddings with their corresponding assessment ids
-      batch.forEach((assessment, index) => {
-        assessmentEmbeddings.push({
-          id: assessment.id,
-          embedding: Array.from(embeddings.data[index] as Float32Array) as number[]
-        });
-      });
-    }
-    
-    embeddingsComputed = true;
-    console.log(`Calculated embeddings for ${assessmentEmbeddings.length} assessments`);
-  } catch (error) {
-    console.error('Error calculating assessment embeddings:', error);
-    throw error;
-  }
+// Get embedding for a search query
+const getQueryEmbedding = async (query: string): Promise<number[]> => {
+  console.log('Getting embedding for query:', query);
+  const embedding = await getEmbeddings([query]);
+  return Array.from(embedding.data);
 };
 
+// Get embeddings for all assessments
+const getAssessmentEmbeddings = async (assessments: Assessment[]): Promise<{ [key: string]: number[] }> => {
+  const cached = Object.keys(assessmentEmbeddings).length;
+  if (cached > 0) {
+    console.log(`Using ${cached} cached assessment embeddings`);
+    return assessmentEmbeddings;
+  }
+
+  console.log('Generating embeddings for assessments...');
+  const texts = assessments.map(a => `${a.title} ${a.description}`);
+  const embeddings = await getEmbeddings(texts);
+  
+  assessmentEmbeddings = assessments.reduce((acc, assessment, index) => {
+    acc[assessment.id] = Array.from(embeddings.data[index]);
+    return acc;
+  }, {} as { [key: string]: number[] });
+
+  console.log(`Generated embeddings for ${assessments.length} assessments`);
+  return assessmentEmbeddings;
+};
+
+// Filter assessments based on search parameters
+const filterAssessments = (
+  assessments: Assessment[],
+  { remote, adaptive, maxDuration, testTypes }: Partial<SearchParams>
+): Assessment[] => {
+  return assessments.filter(assessment => {
+    if (remote !== undefined && assessment.remote_support !== remote) return false;
+    if (adaptive !== undefined && assessment.adaptive_support !== adaptive) return false;
+    if (maxDuration && assessment.assessment_length > maxDuration) return false;
+    if (testTypes?.length && !testTypes.some(type => assessment.test_type.includes(type))) return false;
+    return true;
+  });
+};
+
+// Perform vector search with filtering
 export const performVectorSearch = async (params: SearchParams): Promise<Assessment[]> => {
+  const { query, ...filters } = params;
+  
   try {
-    console.log('Performing vector search with params:', params);
+    // Load and filter assessments
+    const allAssessments = await loadAssessmentData();
+    const filteredAssessments = filterAssessments(allAssessments, filters);
     
-    // Load the assessment data if not already loaded
-    const assessments = await loadAssessmentData();
-    console.log(`Loaded ${assessments.length} assessments for search`);
-    
-    // Calculate embeddings if not already done
-    await calculateAssessmentEmbeddings(assessments);
-    
-    // Generate embedding for the query
-    console.log(`Generating embedding for query: "${params.query}"`);
-    const queryEmbedding = await getEmbeddings([params.query]);
-    const queryVector = Array.from(queryEmbedding.data[0] as Float32Array) as number[];
-    
-    // Calculate similarity between query and all assessments
-    console.log('Calculating similarity scores...');
-    const scoredAssessments = assessments.map(assessment => {
-      const assessmentEmbed = assessmentEmbeddings.find(embed => embed.id === assessment.id);
-      
-      const similarityScore = assessmentEmbed 
-        ? cosineSimilarity(queryVector, assessmentEmbed.embedding)
-        : 0;
-      
-      const normalizedQuery = params.query.toLowerCase();
-      const titleMatch = assessment.title.toLowerCase().includes(normalizedQuery) ? 0.1 : 0;
-      const descMatch = assessment.description.toLowerCase().includes(normalizedQuery) ? 0.05 : 0;
-      
-      const score = similarityScore + titleMatch + descMatch;
-      
-      return { assessment, score };
-    });
-    
-    let results = scoredAssessments
-      .filter(item => {
-        if (params.remote !== undefined && params.remote !== item.assessment.remote_support) {
-          return false;
-        }
-        
-        if (params.adaptive !== undefined && params.adaptive !== item.assessment.adaptive_support) {
-          return false;
-        }
-        
-        if (params.maxDuration !== undefined && item.assessment.assessment_length > params.maxDuration) {
-          return false;
-        }
-        
-        if (params.testTypes && params.testTypes.length > 0) {
-          const hasMatchingType = params.testTypes.some(type => 
-            item.assessment.test_type.includes(type)
-          );
-          
-          if (!hasMatchingType) {
-            return false;
-          }
-        }
-        
-        return item.score > 0.2;
-      })
-      .sort((a, b) => b.score - a.score)
-      .map(item => item.assessment);
-    
-    console.log(`Search returned ${results.length} results after filtering`);
-    
-    const finalResults = results.slice(0, 20);
-    console.log(`Returning ${finalResults.length} results after limiting to 20`);
-    
-    if (finalResults.length === 0 && params.query.trim()) {
-      console.log('No results found, returning default example result for debugging');
-      const dummyResult: Assessment = {
-        id: 'example-1',
-        title: 'Example Assessment (No matches found)',
-        description: `No results matched your query: "${params.query}". This might be because the embedding model couldn't find semantic matches or the data doesn't contain relevant assessments.`,
-        url: '#',
-        remote_support: true,
-        adaptive_support: false,
-        test_type: ['Technical Assessment'],
-        job_levels: ['All Levels'],
-        languages: ['English'],
-        assessment_length: 45,
-        downloads: 0
-      };
-      return [dummyResult];
+    if (filteredAssessments.length === 0) {
+      return [];
     }
-    
-    return finalResults;
+
+    // Get embeddings
+    const queryEmbedding = await getQueryEmbedding(query);
+    const assessmentEmbeddings = await getAssessmentEmbeddings(filteredAssessments);
+
+    // Calculate similarities and sort results
+    const results = filteredAssessments
+      .map(assessment => ({
+        assessment,
+        similarity: cosineSimilarity(queryEmbedding, assessmentEmbeddings[assessment.id])
+      }))
+      .sort((a, b) => b.similarity - a.similarity)
+      .map(result => result.assessment);
+
+    return results;
   } catch (error) {
-    console.error('Error during vector search:', error);
-    const errorResult: Assessment = {
-      id: 'error-1',
-      title: 'Search Error Occurred',
-      description: 'An error occurred during the search. This might be due to issues loading the embedding model or calculating embeddings. Please check the console for more details.',
-      url: '#',
-      remote_support: true,
-      adaptive_support: false,
-      test_type: ['Technical Assessment'],
-      job_levels: ['All Levels'],
-      languages: ['English'],
-      assessment_length: 45,
-      downloads: 0
-    };
-    return [errorResult];
+    console.error('Error in vector search:', error);
+    throw error;
   }
 };
