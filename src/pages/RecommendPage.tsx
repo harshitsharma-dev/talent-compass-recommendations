@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -24,9 +23,15 @@ const RecommendPage = () => {
       setIsModelLoading(true);
       try {
         console.log('Starting data initialization...');
-        toast.loading('Loading assessment data and preparing search engine...');
+        toast.loading('Loading assessment data and preparing search engine...', { id: 'init-loading' });
         
         const startTime = Date.now();
+        
+        const storedEmbeddings = localStorage.getItem('assessment-embeddings-cache-v1');
+        if (storedEmbeddings && JSON.parse(storedEmbeddings) && Object.keys(JSON.parse(storedEmbeddings)).length === 0) {
+          console.log('Found empty embeddings cache, clearing it to force regeneration');
+          localStorage.removeItem('assessment-embeddings-cache-v1');
+        }
         
         const [assessments, embeddings] = await Promise.all([
           loadAssessmentData(),
@@ -36,13 +41,21 @@ const RecommendPage = () => {
         const endTime = Date.now();
         console.log(`Data initialization completed in ${endTime - startTime}ms`);
         console.log(`Loaded ${assessments.length} assessments`);
-        console.log(`Loaded ${Object.keys(embeddings).length} embeddings`);
         
-        toast.dismiss();
-        toast.success('Search engine ready');
+        const embeddingCount = embeddings ? Object.keys(embeddings).length : 0;
+        console.log(`Loaded ${embeddingCount} embeddings`);
+        
+        toast.dismiss('init-loading');
+        
+        if (embeddingCount > 0) {
+          toast.success(`Search engine ready with ${embeddingCount} embeddings`);
+        } else {
+          console.warn('No embeddings were loaded, basic search will be used');
+          toast.warning('Advanced search unavailable, basic search will be used');
+        }
       } catch (error) {
         console.error('Detailed initialization error:', error);
-        toast.dismiss();
+        toast.dismiss('init-loading');
         toast.error('Failed to initialize search engine. Some features may be limited.');
       } finally {
         console.log('Setting isModelLoading to false');
@@ -206,4 +219,3 @@ const RecommendPage = () => {
 };
 
 export default RecommendPage;
-

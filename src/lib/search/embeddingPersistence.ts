@@ -11,7 +11,15 @@ const EMBEDDING_STORAGE_KEY = 'assessment-embeddings-cache-v1';
 const loadStoredEmbeddings = (): EmbeddingCache | null => {
   try {
     const stored = localStorage.getItem(EMBEDDING_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return null;
+    
+    const parsedEmbeddings = JSON.parse(stored);
+    // Check if we actually have embeddings in the cache
+    const embeddingCount = Object.keys(parsedEmbeddings).length;
+    console.log(`Found ${embeddingCount} stored embeddings`);
+    
+    // Only return the embeddings if we actually found some
+    return embeddingCount > 0 ? parsedEmbeddings : null;
   } catch (error) {
     console.error('Error loading stored embeddings:', error);
     return null;
@@ -21,8 +29,14 @@ const loadStoredEmbeddings = (): EmbeddingCache | null => {
 // Save embeddings to localStorage
 const saveEmbeddings = (embeddings: EmbeddingCache): void => {
   try {
+    const embeddingCount = Object.keys(embeddings).length;
+    if (embeddingCount === 0) {
+      console.warn('Attempted to save empty embeddings cache, skipping save');
+      return;
+    }
+    
     localStorage.setItem(EMBEDDING_STORAGE_KEY, JSON.stringify(embeddings));
-    console.log('Embeddings saved to local storage');
+    console.log(`Saved ${embeddingCount} embeddings to local storage`);
   } catch (error) {
     console.error('Error saving embeddings:', error);
   }
@@ -34,17 +48,38 @@ export const initializeEmbeddings = async (): Promise<EmbeddingCache> => {
   
   // Try to load existing embeddings
   const storedEmbeddings = loadStoredEmbeddings();
-  if (storedEmbeddings) {
-    console.log('Using stored embeddings from local storage');
+  if (storedEmbeddings && Object.keys(storedEmbeddings).length > 0) {
+    console.log(`Using stored embeddings from local storage (${Object.keys(storedEmbeddings).length} found)`);
     return storedEmbeddings;
   }
   
-  console.log('No stored embeddings found, generating new ones...');
+  console.log('No valid stored embeddings found, generating new ones...');
   
   try {
     // Load all assessments
     const assessments = await loadAssessmentData();
     console.log(`Generating embeddings for ${assessments.length} assessments...`);
+    
+    // Extract embeddings from assessment objects if they exist
+    const embeddings: EmbeddingCache = {};
+    let extractedCount = 0;
+    
+    // First try to extract embeddings from the pre-computed CSV data
+    for (const assessment of assessments) {
+      if (assessment.embedding && Array.isArray(assessment.embedding) && assessment.embedding.length > 0) {
+        embeddings[assessment.id] = assessment.embedding;
+        extractedCount++;
+      }
+    }
+    
+    // If we found embeddings in the CSV data, use those
+    if (extractedCount > 0) {
+      console.log(`Extracted ${extractedCount} pre-computed embeddings from assessment data`);
+      saveEmbeddings(embeddings);
+      return embeddings;
+    }
+    
+    console.log('No pre-computed embeddings found, generating via API...');
     
     // Prepare rich text for each assessment
     const texts = assessments.map(a => 
@@ -60,7 +95,6 @@ export const initializeEmbeddings = async (): Promise<EmbeddingCache> => {
     
     // Generate embeddings in batches
     const batchSize = 20;
-    const embeddings: EmbeddingCache = {};
     
     for (let i = 0; i < assessments.length; i += batchSize) {
       const batch = texts.slice(i, i + batchSize);
@@ -78,7 +112,7 @@ export const initializeEmbeddings = async (): Promise<EmbeddingCache> => {
     
     // Save to local storage
     saveEmbeddings(embeddings);
-    console.log('Generated and stored embeddings for all assessments');
+    console.log(`Generated and stored embeddings for all assessments (${Object.keys(embeddings).length})`);
     
     return embeddings;
   } catch (error) {
@@ -86,3 +120,4 @@ export const initializeEmbeddings = async (): Promise<EmbeddingCache> => {
     throw error;
   }
 };
+
