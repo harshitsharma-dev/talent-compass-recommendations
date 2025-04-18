@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -40,12 +41,27 @@ const ResultsPage = () => {
     
     loadInitialData().then(() => {
       console.log('Initial data loaded:', results.length, 'results');
+      
+      // If no results and we have a query, try performing the search again with relaxed criteria
+      if (results.length === 0 && storedQuery) {
+        console.log('No stored results found, attempting search again with query:', storedQuery);
+        performSearch(storedQuery);
+      }
     }).catch((error) => {
       console.error('Failed to load initial data:', error);
       toast.error('Failed to load assessment data');
       navigate('/recommend');
     });
-  }, [loadInitialData, navigate, setQuery]);
+  }, [loadInitialData, navigate, setQuery, performSearch, results.length]);
+
+  const handleFilterChange = (newFilters) => {
+    updateFilters(newFilters);
+    
+    // Re-run the search with updated filters if we have a query
+    if (query) {
+      performSearch(query);
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -73,13 +89,13 @@ const ResultsPage = () => {
               <Card className="sticky top-6 p-6">
                 <FilterOptions
                   remote={filters.remote}
-                  setRemote={(value) => updateFilters({ remote: value })}
+                  setRemote={(value) => handleFilterChange({ remote: value })}
                   adaptive={filters.adaptive}
-                  setAdaptive={(value) => updateFilters({ adaptive: value })}
+                  setAdaptive={(value) => handleFilterChange({ adaptive: value })}
                   maxDuration={filters.maxDuration}
-                  setMaxDuration={(value) => updateFilters({ maxDuration: value })}
+                  setMaxDuration={(value) => handleFilterChange({ maxDuration: value })}
                   testTypes={filters.testTypes}
-                  setTestTypes={(value) => updateFilters({ testTypes: value })}
+                  setTestTypes={(value) => handleFilterChange({ testTypes: value })}
                 />
               </Card>
             </div>
@@ -97,13 +113,13 @@ const ResultsPage = () => {
                   <div className="py-6">
                     <FilterOptions
                       remote={filters.remote}
-                      setRemote={(value) => updateFilters({ remote: value })}
+                      setRemote={(value) => handleFilterChange({ remote: value })}
                       adaptive={filters.adaptive}
-                      setAdaptive={(value) => updateFilters({ adaptive: value })}
+                      setAdaptive={(value) => handleFilterChange({ adaptive: value })}
                       maxDuration={filters.maxDuration}
-                      setMaxDuration={(value) => updateFilters({ maxDuration: value })}
+                      setMaxDuration={(value) => handleFilterChange({ maxDuration: value })}
                       testTypes={filters.testTypes}
-                      setTestTypes={(value) => updateFilters({ testTypes: value })}
+                      setTestTypes={(value) => handleFilterChange({ testTypes: value })}
                     />
                   </div>
                 </SheetContent>

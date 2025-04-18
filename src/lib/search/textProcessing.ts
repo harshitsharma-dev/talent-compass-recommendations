@@ -1,3 +1,4 @@
+
 // Comprehensive text preprocessing for semantic search
 export const preprocessText = (text: string): string => {
   if (!text) return '';
@@ -29,6 +30,13 @@ export const preprocessText = (text: string): string => {
     'vue': 'vue javascript frontend web development',
     'node': 'node.js javascript backend server',
     'nodejs': 'node.js javascript backend server',
+    // Added more synonyms for common terms
+    'script': 'javascript js programming coding',
+    'coding': 'programming development implementation',
+    'assessment': 'test evaluation examination challenge',
+    'professionals': 'experts skilled workers specialists',
+    'mid-level': 'intermediate experienced mid-career',
+    'proficient': 'skilled expert competent capable advanced',
     
     // Job roles and test types
     'dev': 'developer software engineer programmer coder',

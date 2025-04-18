@@ -63,9 +63,18 @@ const SearchResults = ({ loading, showNoResults, results }: SearchResultsProps) 
             <li>• Checking for typos in your search query</li>
             <li>• Increasing the maximum duration value</li>
           </ul>
-          <Button onClick={() => navigate('/recommend')} className="mt-4">
-            Try a Different Search
-          </Button>
+          <div className="flex flex-wrap gap-4 justify-center">
+            <Button onClick={() => navigate('/recommend')} className="mt-4">
+              Try a Different Search
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.reload()} 
+              className="mt-4"
+            >
+              Reset Filters
+            </Button>
+          </div>
         </div>
       </div>
     );
