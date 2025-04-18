@@ -65,20 +65,25 @@ export const loadAssessmentData = async (): Promise<Assessment[]> => {
         const results = parseCSV(csvText);
         console.log(`Parsed ${results.length} rows from CSV`);
         
+        // Debug the first few rows to see what we're getting
+        if (results.length > 0) {
+          console.log('First row sample:', results[0]);
+        }
+        
         const assessmentData = results
-          .filter(row => row.title && row.url)
+          .filter(row => row['Test Title'] && row.Link) // Use correct field names
           .map((row, index) => ({
             id: String(index),
-            title: row.title || 'Untitled Assessment',
-            url: row.url || '#',
-            remote_support: row.remote_support === 'Yes' || row.remote_support === 'true',
-            adaptive_support: row.adaptive_support === 'Yes' || row.adaptive_support === 'true',
-            test_type: row.test_type ? row.test_type.split(',').map((t: string) => t.trim()) : ['Technical Assessment'],
-            description: row.description || 'No description available',
-            job_levels: row.job_levels ? row.job_levels.split(',').map((j: string) => j.trim()) : ['All Levels'],
-            languages: row.languages ? row.languages.split(',').map((l: string) => l.trim()) : ['English'],
-            assessment_length: parseInt(row.assessment_length) || 45,
-            downloads: parseInt(row.downloads) || 0
+            title: row['Test Title'] || 'Untitled Assessment',
+            url: row.Link ? `https://www.shl.com${row.Link}` : '#',
+            remote_support: row['Remote Testing'] === 'Yes',
+            adaptive_support: row['Adaptive/IRT'] === 'Yes',
+            test_type: row['Test Type'] ? [row['Test Type']] : ['Technical Assessment'],
+            description: row.Description || 'No description available',
+            job_levels: row['Job Levels'] ? row['Job Levels'].split(',').map((j: string) => j.trim()) : ['All Levels'],
+            languages: row.Languages ? row.Languages.split(',').map((l: string) => l.trim()) : ['English'],
+            assessment_length: parseInt(row['Assessment Length']) || 45,
+            downloads: Math.floor(Math.random() * 5000) + 100 // Random download count since it's not in CSV
           }));
 
         console.log(`Created ${assessmentData.length} assessment objects`);

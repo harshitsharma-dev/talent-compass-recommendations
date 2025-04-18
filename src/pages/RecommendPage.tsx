@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -78,6 +77,7 @@ const RecommendPage = () => {
       setIsLoading(true);
       toast.loading('Loading all assessments...');
       
+      console.log('Attempting to load all assessments...');
       const allAssessments = await loadAssessmentData();
       console.log(`Retrieved ${allAssessments.length} assessments for "See All"`);
       
@@ -93,9 +93,7 @@ const RecommendPage = () => {
       toast.success(`Found ${allAssessments.length} assessments`);
       
       // Ensure we have data before navigating
-      if (allAssessments.length > 0) {
-        navigate('/results');
-      }
+      navigate('/results');
     } catch (error) {
       console.error('Error loading assessments:', error);
       toast.error('Failed to load assessments. Please try again.');

@@ -19,7 +19,9 @@ const SearchSummary = ({ query, onSearch }: SearchSummaryProps) => {
 
   return (
     <div className="mb-8">
-      <h1 className="text-3xl font-bold mb-3">Assessment Recommendations</h1>
+      <h1 className="text-3xl font-bold mb-3">
+        {query ? 'Assessment Recommendations' : 'All Assessments'}
+      </h1>
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mt-4">
         <p className="text-muted-foreground flex-shrink-0">
           {query ? (
@@ -31,7 +33,7 @@ const SearchSummary = ({ query, onSearch }: SearchSummaryProps) => {
         <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
           <Input 
             id="quick-search" 
-            placeholder="Refine your search..." 
+            placeholder="Search assessments..." 
             className="max-w-xs"
             defaultValue={query}
           />
