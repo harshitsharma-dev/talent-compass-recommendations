@@ -1,3 +1,4 @@
+
 import { Assessment } from '@/lib/mockData';
 import { loadAssessmentData } from '@/lib/data/assessmentLoader';
 import { cosineSimilarity } from './vectorOperations';
@@ -102,7 +103,13 @@ export const performVectorSearch = async (params: SearchParams): Promise<Assessm
       
       // Create a map of assessment IDs to embeddings
       const embeddingsMap = new Map(
-        embeddingsData.map(row => [row.assessment_id, row.embedding])
+        embeddingsData.map(row => {
+          // Convert embedding from string to number[] if needed
+          const embedding = typeof row.embedding === 'string' 
+            ? JSON.parse(row.embedding) 
+            : row.embedding;
+          return [row.assessment_id, embedding];
+        })
       );
       
       // Rank assessments by similarity
